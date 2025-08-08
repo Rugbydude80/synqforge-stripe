@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RealtimeChannelPromise } from 'ably';
 import { getAblyRealtime } from '@/lib/ably';
 
 type AnyData = Record<string, any>;
@@ -7,7 +6,7 @@ type AnyData = Record<string, any>;
 export function useAblyChannel(channelName: string, clientId: string) {
   const [presence, setPresence] = useState<AnyData[]>([]);
   const clientRef = useRef<any>(null);
-  const channelRef = useRef<RealtimeChannelPromise | null>(null);
+  const channelRef = useRef<any>(null);
 
   const channel = useMemo(() => channelRef.current, [channelRef.current]);
 

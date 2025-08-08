@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { Database } from '@/types_db';
+// Use the extended Database type that includes SynqForge tables. See
+// '@/types/extended-db' for details.
+import type { Database } from '@/types/extended-db';
 
 // Define a function to create a Supabase client for server-side operations
 // The function takes a cookie store created with next/headers cookies as an argument

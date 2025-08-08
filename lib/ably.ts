@@ -16,7 +16,7 @@ export async function getAblyRealtime(clientId: string) {
         return null;
       }
       const Ably = await import('ably');
-      const client = new Ably.Realtime.Promise({
+      const client = new Ably.Realtime({
         clientId,
         authUrl: '/api/ably/auth',
         echoMessages: true,

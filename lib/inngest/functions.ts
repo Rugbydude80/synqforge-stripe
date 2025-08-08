@@ -1,7 +1,7 @@
 import { inngest } from '@/lib/inngest';
 import { stripe } from '@/utils/stripe/config';
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types_db';
+import type { Database } from '@/types/extended-db';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -87,12 +87,13 @@ export const aiCreditsDeduct = inngest.createFunction(
   async ({ event, step }) => {
     const supabase = getAdminClient();
     const organisationId: string = (event.data as any)?.organisationId;
+    const userId: string | undefined = (event.data as any)?.userId;
     const tokensUsed: number = Number((event.data as any)?.tokensUsed ?? 0);
     if (!organisationId || !Number.isFinite(tokensUsed) || tokensUsed <= 0) return;
 
     // 1) Deduct credits (1 token == 1 credit for simplicity, adjust as needed)
     await step.run('deduct-credits', async () => {
-      await supabase.rpc('decrement_ai_credits', {
+      await (supabase as any).rpc('decrement_ai_credits', {
         org_id: organisationId,
         amount: tokensUsed
       });
@@ -102,7 +103,7 @@ export const aiCreditsDeduct = inngest.createFunction(
     await step.run('log-usage', async () => {
       await supabase
         .from('ai_operations')
-        .insert([{ organisation_id: organisationId, tokens_used: tokensUsed }]);
+        .insert([{ organisation_id: organisationId, user_id: userId || organisationId, operation_type: 'ai', model: 'n/a', tokens_used: tokensUsed, credits_used: tokensUsed } as any]);
     });
   }
 );

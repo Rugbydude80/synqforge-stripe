@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
 
     const { keyName, keySecret } = parseAblyKey(process.env.ABLY_API_KEY);
 
-    const capability = {
+    const capability: Record<string, string[]> = {
       [`project:${projectId}`]: ['publish', 'subscribe', 'presence'],
       [`user:${user.id}`]: ['publish', 'subscribe', 'presence']
-    } as const;
+    };
 
     const ttlMs = 60 * 60 * 1000; // 1 hour
 
