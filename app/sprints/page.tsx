@@ -43,6 +43,7 @@ type Sprint = {
   start_date: string; // YYYY-MM-DD
   end_date: string; // YYYY-MM-DD
   status: string;
+  capacity_points?: number | null;
 };
 
 function SprintsClient({ projectId }: { projectId: string }) {
@@ -53,7 +54,8 @@ function SprintsClient({ projectId }: { projectId: string }) {
     goal: '',
     start_date: '',
     end_date: '',
-    status: 'planning'
+    status: 'planning',
+    capacity_points: 0
   });
   const [saving, setSaving] = useState(false);
 
@@ -98,7 +100,8 @@ function SprintsClient({ projectId }: { projectId: string }) {
           goal: form.goal,
           startDate: form.start_date,
           endDate: form.end_date,
-          status: form.status
+          status: form.status,
+          capacityPoints: form.capacity_points ?? 0
         })
       });
       const data = await res.json();
@@ -106,7 +109,7 @@ function SprintsClient({ projectId }: { projectId: string }) {
         toast({ title: 'Error', description: data.error || 'Failed to save sprint' });
       } else {
         toast({ title: 'Saved', description: 'Sprint saved' });
-        setForm({ name: '', goal: '', start_date: '', end_date: '', status: 'planning' });
+        setForm({ name: '', goal: '', start_date: '', end_date: '', status: 'planning', capacity_points: 0 });
         void refresh();
       }
     } finally {
@@ -114,7 +117,7 @@ function SprintsClient({ projectId }: { projectId: string }) {
     }
   };
 
-  const edit = (s: Sprint) => setForm({ id: s.id, name: s.name, goal: s.goal ?? '', start_date: s.start_date, end_date: s.end_date, status: s.status });
+  const edit = (s: Sprint) => setForm({ id: s.id, name: s.name, goal: s.goal ?? '', start_date: s.start_date, end_date: s.end_date, status: s.status, capacity_points: s.capacity_points ?? 0 });
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -128,6 +131,10 @@ function SprintsClient({ projectId }: { projectId: string }) {
             <div className="flex gap-2">
               <input className="w-full rounded border p-2" type="date" value={form.start_date || ''} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
               <input className="w-full rounded border p-2" type="date" value={form.end_date || ''} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 items-center">
+              <label className="text-sm w-40">Capacity (points)</label>
+              <input className="w-full rounded border p-2" type="number" min={0} value={Number(form.capacity_points ?? 0)} onChange={(e) => setForm((f) => ({ ...f, capacity_points: Number(e.target.value) }))} />
             </div>
             <select className="w-full rounded border p-2" value={form.status || 'planning'} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
               <option value="planning">planning</option>
@@ -145,9 +152,32 @@ function SprintsClient({ projectId }: { projectId: string }) {
               <li key={s.id} className="flex items-center justify-between rounded border p-2">
                 <div>
                   <div className="font-medium">{s.name} <span className="text-xs text-zinc-500">[{s.status}]</span></div>
-                  <div className="text-xs text-zinc-500">{s.start_date} → {s.end_date}</div>
+                  <div className="text-xs text-zinc-500">{s.start_date} → {s.end_date} • capacity: {s.capacity_points ?? 0}</div>
                 </div>
-                <button className="text-sm text-blue-600" onClick={() => edit(s)}>Edit</button>
+                <div className="flex items-center gap-2">
+                  <button className="text-sm text-blue-600" onClick={() => edit(s)}>Edit</button>
+                  {s.status !== 'active' && (
+                    <button className="text-sm text-green-600" onClick={async () => {
+                      await fetch('/api/sprints', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: s.id, status: 'active' }) });
+                      toast({ title: 'Sprint started' });
+                      void refresh();
+                    }}>Start</button>
+                  )}
+                  {s.status !== 'completed' && (
+                    <button className="text-sm text-emerald-600" onClick={async () => {
+                      await fetch('/api/sprints', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: s.id, status: 'completed' }) });
+                      toast({ title: 'Sprint completed' });
+                      void refresh();
+                    }}>Complete</button>
+                  )}
+                  {s.status !== 'archived' && (
+                    <button className="text-sm text-zinc-600" onClick={async () => {
+                      await fetch('/api/sprints', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: s.id, status: 'archived' }) });
+                      toast({ title: 'Sprint archived' });
+                      void refresh();
+                    }}>Archive</button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

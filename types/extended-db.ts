@@ -187,6 +187,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           assigned_to: string | null;
           points: number | null;
           due_date: string | null; // YYYY-MM-DD
+           completed_at: string | null;
           priority: number | null;
           ai_generated: boolean | null;
           created_at: string | null;
@@ -205,6 +206,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           assigned_to?: string | null;
           points?: number | null;
           due_date?: string | null;
+           completed_at?: string | null;
           priority?: number | null;
           ai_generated?: boolean | null;
           created_at?: string | null;
@@ -221,6 +223,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           assigned_to?: string | null;
           points?: number | null;
           due_date?: string | null;
+           completed_at?: string | null;
           priority?: number | null;
           ai_generated?: boolean | null;
           created_at?: string | null;
@@ -305,6 +308,9 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           start_date: string;
           end_date: string;
           status: string;
+           capacity_points?: number | null;
+           story_points_completed?: number | null;
+           velocity?: number | null;
           created_at: string | null;
           updated_at: string | null;
         };
@@ -316,6 +322,9 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           start_date: string;
           end_date: string;
           status?: string;
+           capacity_points?: number | null;
+           story_points_completed?: number | null;
+           velocity?: number | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -327,6 +336,9 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           start_date?: string;
           end_date?: string;
           status?: string;
+           capacity_points?: number | null;
+           story_points_completed?: number | null;
+           velocity?: number | null;
           created_at?: string | null;
           updated_at?: string | null;
         };

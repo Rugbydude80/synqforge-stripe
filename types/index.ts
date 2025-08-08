@@ -26,6 +26,7 @@ export type Story = {
   assignedTo?: string | null;
   points?: number; // agile story points
   dueDate?: string | null; // ISO date string (YYYY-MM-DD)
+  completedAt?: string | null; // ISO timestamp when completed
   sprintId?: string | null;
   createdAt: string;
   updatedAt?: string;
@@ -52,6 +53,9 @@ export type Sprint = {
   startDate: string; // ISO date
   endDate: string; // ISO date
   status: string;
+  capacityPoints?: number; // capacity target for planning
+  storyPointsCompleted?: number; // analytics
+  velocity?: number; // points per day
   createdAt: string;
   updatedAt?: string;
 };

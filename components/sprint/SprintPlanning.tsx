@@ -75,7 +75,7 @@ export function SprintPlanning({ projectId }: { projectId: string }) {
       </div>
       <div className="space-y-2">
         <label className="block text-sm font-medium" htmlFor="velocity">
-          Historical Velocity (stories per sprint)
+          Historical Velocity (points per day)
         </label>
         <input
           id="velocity"
@@ -115,6 +115,9 @@ export function SprintPlanning({ projectId }: { projectId: string }) {
           <div className="text-sm text-zinc-600 dark:text-zinc-300">
             Total points: {plan.suggestedStories.reduce((sum, s) => sum + (s.points || 0), 0)} / {capacity}
           </div>
+          {plan.suggestedStories.reduce((sum, s) => sum + (s.points || 0), 0) > capacity && (
+            <div className="text-sm text-orange-600">Warning: Selected points exceed capacity.</div>
+          )}
           <ul className="list-disc pl-5 space-y-1">
             {plan.suggestedStories.map((story) => (
               <li key={story.id}>

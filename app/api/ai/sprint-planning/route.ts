@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   // Fetch all stories that are not yet completed
   const { data: stories, error: storiesError } = await supabase
     .from('stories')
-    .select('id, title, created_at, points')
+    .select('id, title, created_at, points, due_date')
     .eq('project_id', projectId)
     .in('status', ['backlog', 'in_progress', 'review']);
   if (storiesError) {
@@ -50,8 +50,53 @@ export async function POST(request: Request) {
       selected.push({ id: s.id, title: s.title, points: pts });
     }
   }
-  return NextResponse.json({
-    summary: `AI suggests ${selected.length} stories totalling ${runningTotal} points for the next sprint based on capacity ${teamCapacity} and historical velocity ${historicalVelocity}.`,
-    suggestedStories: selected
-  });
+  // Include due dates and velocity into a planning note for the client.
+  const earliestDue = (stories ?? [])
+    .map((s: any) => s.due_date)
+    .filter(Boolean)
+    .sort()[0];
+  let summary = `AI suggests ${selected.length} stories totalling ${runningTotal} points (capacity ${teamCapacity}). Historical velocity: ${historicalVelocity} pts/day over ${sprintDuration} days. Earliest due: ${earliestDue || 'n/a'}.`;
+  try {
+    // Best-effort: enrich summary via OpenRouter if API key is present
+    if (process.env.OPENROUTER_API_KEY) {
+      const prompt = [
+        `Team capacity: ${teamCapacity} points`,
+        `Historical velocity: ${historicalVelocity} points/day`,
+        `Sprint duration: ${sprintDuration} days`,
+        `Earliest due date among candidates: ${earliestDue || 'n/a'}`,
+        '',
+        'Candidate stories (id, title, points):',
+        ...selected.map((s) => `- ${s.id}: ${s.title} (${s.points} pts)`),
+        '',
+        'Write a concise planning note summarizing risk due to due dates and whether selection fits capacity. Return a single sentence.'
+      ].join('\n');
+      const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? '',
+          'X-Title': 'SynqForge Sprint Planning',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-4-turbo-preview',
+          messages: [
+            { role: 'system', content: 'You are an assistant that writes agile planning notes.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 200,
+          stream: false
+        })
+      });
+      if (aiRes.ok) {
+        const aiJson = await aiRes.json();
+        const content: string | undefined = aiJson?.choices?.[0]?.message?.content;
+        if (content) summary = content.trim();
+      }
+    }
+  } catch {
+    // ignore AI errors; fallback to computed summary
+  }
+  return NextResponse.json({ summary, suggestedStories: selected });
 }

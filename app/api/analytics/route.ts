@@ -56,29 +56,35 @@ export async function GET(request: Request) {
   if (projectIds.length === 0) {
     return NextResponse.json({ error: 'No projects' }, { status: 400 });
   }
-  // Helper to count stories by status
-  async function countStories(status: 'backlog' | 'in_progress' | 'review' | 'done') {
-    const { count } = await supabase
+  // Distribution of story points by status
+  async function sumPoints(status: 'backlog' | 'in_progress' | 'review' | 'done') {
+    const { data } = await supabase
       .from('stories')
-      .select('*', { count: 'exact', head: true })
+      .select('points')
       .in('project_id', projectIds)
       .eq('status', status);
-    return count ?? 0;
+    return (data ?? []).reduce((sum, s) => sum + (s.points ?? 0), 0);
   }
-  // Compute distribution
-  const backlogCount = await countStories('backlog');
-  const inProgressCount = await countStories('in_progress');
-  const reviewCount = await countStories('review');
-  const doneCount = await countStories('done');
-  // Velocity: total points completed in the period
-  const { data: doneStories } = await supabase
-    .from('stories')
-    .select('points, updated_at')
+  const backlogCount = await sumPoints('backlog');
+  const inProgressCount = await sumPoints('in_progress');
+  const reviewCount = await sumPoints('review');
+  const doneCount = await sumPoints('done');
+  // Velocity per sprint: points completed divided by sprint duration (days)
+  const { data: sprints } = await supabase
+    .from('sprints')
+    .select('id, start_date, end_date, story_points_completed, velocity')
     .in('project_id', projectIds)
-    .eq('status', 'done')
-    .gte('updated_at', startDate)
-    .lte('updated_at', endDate);
-  const velocityPoints = (doneStories ?? []).reduce((sum, s) => sum + (s.points ?? 0), 0);
+    .gte('start_date', startDate.substring(0, 10))
+    .lte('end_date', endDate.substring(0, 10));
+  const velocityPerSprint = (sprints ?? []).map((s) => {
+    const start = new Date(s.start_date);
+    const end = new Date(s.end_date);
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const points = (s as any).story_points_completed ?? 0;
+    const vel = points / days;
+    return { sprintId: s.id, velocity: vel };
+  });
+  const velocityPoints = velocityPerSprint.reduce((sum, v) => sum + v.velocity, 0);
   // AI usage: sum tokens used per day (simple measure)
   const { data: aiOps } = await supabase
     .from('ai_operations')
@@ -87,22 +93,40 @@ export async function GET(request: Request) {
     .gte('created_at', startDate)
     .lte('created_at', endDate);
   const totalTokens = (aiOps ?? []).reduce((sum, op) => sum + (op.tokens_used ?? 0), 0);
-  // Burndown: remaining points per day (simplified calculation)
-  const totalOpenPointsQuery = await supabase
-    .from('stories')
-    .select('points')
+  // Burndown per active sprint: compute daily remaining points based on story points and completion timestamps
+  const { data: activeSprint } = await supabase
+    .from('sprints')
+    .select('id, start_date, end_date')
     .in('project_id', projectIds)
-    .in('status', ['backlog', 'in_progress', 'review']);
-  const totalOpenPoints = (totalOpenPointsQuery.data ?? []).reduce((sum, s) => sum + (s.points ?? 0), 0);
-  const totalDonePoints = velocityPoints;
-  const days = 7;
-  const burndown = Array.from({ length: days }, (_, i) => {
-    const date = new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000);
-    const dayStr = date.toISOString().substring(0, 10);
-    // naive linear interpolation from total to 0 across the period
-    const remaining = Math.max(totalOpenPoints - Math.round((totalDonePoints / days) * i), 0);
-    return { date: dayStr, remaining };
-  });
+    .eq('status', 'active')
+    .order('start_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let burndown: Array<{ date: string; remaining: number }>= [];
+  if (activeSprint) {
+    const { data: sprintStories } = await supabase
+      .from('stories')
+      .select('points, status, completed_at')
+      .in('project_id', projectIds)
+      .eq('sprint_id', activeSprint.id);
+    const start = new Date(activeSprint.start_date);
+    const end = new Date(activeSprint.end_date);
+    const totalPoints = (sprintStories ?? []).reduce((sum, s) => sum + (s.points ?? 0), 0);
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    for (let i = 0; i <= days; i++) {
+      const day = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
+      const dayStr = day.toISOString().substring(0, 10);
+      const completedByDay = (sprintStories ?? []).reduce((sum, s) => {
+        const completedAt = s.completed_at ? new Date(s.completed_at).getTime() : undefined;
+        if (s.status === 'done' && completedAt && completedAt <= day.getTime()) {
+          return sum + (s.points ?? 0);
+        }
+        return sum;
+      }, 0);
+      const remaining = Math.max(totalPoints - completedByDay, 0);
+      burndown.push({ date: dayStr, remaining });
+    }
+  }
   const analytics = {
     distribution: {
       backlog: backlogCount,
@@ -110,7 +134,7 @@ export async function GET(request: Request) {
       review: reviewCount,
       done: doneCount
     },
-    velocity: velocityPoints,
+    velocityPerSprint,
     aiUsage: {
       totalTokens
     },

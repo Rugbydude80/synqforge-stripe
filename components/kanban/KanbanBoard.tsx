@@ -32,6 +32,7 @@ export interface Story {
   points?: number | null;
   due_date?: string | null;
   sprint_id?: string | null;
+  completed_at?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -56,7 +57,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   // multiple hooks call getAblyRealtime with the same id they'll reuse the
   // connection. The useAblyChannel hook returns helpers to publish and
   // subscribe to events on this channel.
-  const { publish, subscribe } = useAblyChannel(`project:${projectId}`, 'kanban');
+  const { publish, subscribe, presence } = useAblyChannel(`project:${projectId}`, 'kanban');
 
   /**
    * Fetch all stories for the given project and build an array of columns.
@@ -161,6 +162,16 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
     };
   }, [subscribe]);
 
+  // Subscribe to edits to force refresh
+  useEffect(() => {
+    const unsub = subscribe('story.edited', () => {
+      void refreshStories();
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [subscribe, refreshStories]);
+
   /**
    * Handle a drag end event from the DnD context. If a card was moved
    * between columns we optimistically update local state, persist the
@@ -231,7 +242,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         assigned_to: form.assigned_to ?? null,
         points: typeof form.points === 'number' ? form.points : 0,
         due_date: form.due_date ?? null,
-        sprint_id: form.sprint_id ?? null
+        sprint_id: form.sprint_id ?? null,
+        status: (form as any).status || undefined
       };
       const { error } = await supabase.from('stories').update(payload).eq('id', editingId);
       if (error) throw error;
@@ -239,6 +251,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       setEditingId(null);
       setForm({});
       void refreshStories();
+      // Broadcast edit event for other clients to refetch
+      await publish('story.edited', { id: editingId });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
@@ -257,6 +271,16 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
 
   return (
     <div className="overflow-x-auto">
+      {/* Presence avatar stack */}
+      <div className="flex -space-x-2 mb-3">
+        {presence.slice(0, 6).map((m: any) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={m.id} src={m.data?.avatar_url || '/favicon.ico'} alt={m.id} className="w-6 h-6 rounded-full border-2 border-white dark:border-zinc-800" />
+        ))}
+        {presence.length > 6 && (
+          <div className="w-6 h-6 rounded-full bg-zinc-300 flex items-center justify-center text-[10px]">+{presence.length - 6}</div>
+        )}
+      </div>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-4">
           {columns.map((column) => (
@@ -305,6 +329,11 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                     <option key={s.id} value={s.id}>{s.name} [{s.status}]</option>
                                   ))}
                                 </select>
+                                <select className="w-full rounded border p-1 text-sm" value={(form.status as any as string) || (columns.find(c=>c.stories.some(st=>st.id===editingId))?.id ?? '')} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
+                                  {STATUSES.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
                               </div>
                               <div className="flex items-center gap-2 justify-end">
                                 <button className="text-sm px-2 py-1 rounded border" onClick={cancelEdit}>Cancel</button>
@@ -320,7 +349,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                               {story.description && (
                                 <div className="text-xs text-zinc-500 mt-1">{story.description}</div>
                               )}
-                              <div className="flex items-center justify-between mt-2">
+                               <div className="flex items-center justify-between mt-2">
                                 <div className="flex items-center gap-2">
                                   {story.assigned_to && memberById.get(story.assigned_to)?.avatar_url ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -332,6 +361,9 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                 </div>
                                 <button className="text-xs text-blue-600" onClick={() => startEdit(story)}>Edit</button>
                               </div>
+                              {story.due_date && (
+                                <div className="text-[10px] text-zinc-500 mt-1">Due: {story.due_date}</div>
+                              )}
                             </div>
                           )}
                         </div>
