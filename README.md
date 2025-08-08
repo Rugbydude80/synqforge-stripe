@@ -244,6 +244,30 @@ Note that webhook forwarding and the development server must be running concurre
 
 Finally, navigate to [http://localhost:3000](http://localhost:3000) in your browser to see the application rendered.
 
+## Inngest (Background Jobs)
+
+- Install: `pnpm add inngest`
+- API route: `/api/inngest` via `app/api/inngest/route.ts`
+- Client: `lib/inngest.ts`
+- Functions: `lib/inngest/functions.ts`
+- Dev server: `npx inngest-cli@latest dev -u http://localhost:3000/api/inngest`
+
+### Registered events
+- `user.signup.completed`: Ensures Stripe customer; creates default organisation + project
+- `ai.credits.deduct`: Deducts credits on `organisations.ai_credits`; logs `ai_operations`
+- `analytics.export.requested`: Exports CSV to Storage bucket `exports` and returns a public URL
+
+### Environment
+```
+INNGEST_APP_ID=synqforge-stripe
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+STRIPE_SECRET_KEY=...
+```
+
+Important: Never commit `SUPABASE_SERVICE_ROLE_KEY`. Rotate any exposed key immediately.
+
 ## Going live
 
 ### Archive testing products

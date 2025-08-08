@@ -64,6 +64,42 @@ CREATE TABLE stories (
 );
 
 -- ========================
+-- Helper: decrement_ai_credits(org_id, amount)
+-- ========================
+CREATE OR REPLACE FUNCTION decrement_ai_credits(org_id UUID, amount INTEGER)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE organisations
+  SET ai_credits = GREATEST(ai_credits - amount, 0),
+      updated_at = now()
+  WHERE id = org_id;
+END;
+$$;
+
+-- ========================
+-- Table: ai_operations (usage logs)
+-- ========================
+CREATE TABLE IF NOT EXISTS ai_operations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES auth.users(id),
+  tokens_used INTEGER NOT NULL DEFAULT 0,
+  model TEXT,
+  metadata JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+ALTER TABLE ai_operations ENABLE ROW LEVEL SECURITY;
+
+-- ========================
+-- Storage bucket: exports
+-- ========================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('exports', 'exports', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ========================
 -- Enable RLS
 -- ========================
 ALTER TABLE organisations ENABLE ROW LEVEL SECURITY;
