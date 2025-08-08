@@ -12,6 +12,7 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-p
 import { useAblyChannel } from '@/hooks/useAblyChannel';
 import { createClient as createSupabaseBrowserClient } from '@/utils/supabase/client';
 import { toast } from '@/components/ui/Toasts/use-toast';
+import { cn } from '@/utils/cn';
 
 // Define the statuses used by SynqForge. Additional statuses can be added here
 // and will automatically show up as columns.
@@ -51,13 +52,14 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   const [sprints, setSprints] = useState<Array<{ id: string; name: string; status: string }>>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Story>>({});
+  const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
 
   // Initialise Ably realtime channel for this project. We scope the clientId to
   // "kanban" because Ably requires a unique clientId per connection; if
   // multiple hooks call getAblyRealtime with the same id they'll reuse the
   // connection. The useAblyChannel hook returns helpers to publish and
   // subscribe to events on this channel.
-  const { publish, subscribe, presence } = useAblyChannel(`project:${projectId}`, 'kanban');
+  const { publish, subscribe, presence, updatePresence } = useAblyChannel(`project:${projectId}`, 'kanban');
 
   /**
    * Fetch all stories for the given project and build an array of columns.
@@ -101,6 +103,17 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       mappedMembers = (usersData || []).map((u) => ({ user_id: u.id, full_name: (u as any).full_name ?? null, avatar_url: (u as any).avatar_url ?? null }));
     }
     setMembers(mappedMembers);
+    // include avatar in presence data for current user if available
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const meId = authData.user?.id;
+      if (meId) {
+        const { data: meRow } = await supabase.from('users').select('avatar_url').eq('id', meId).maybeSingle();
+        if (meRow?.avatar_url) {
+          await updatePresence({ avatar_url: meRow.avatar_url });
+        }
+      }
+    } catch {}
     const { data: sprintData } = await supabase
       .from('sprints')
       .select('id, name, status')
@@ -117,6 +130,11 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   useEffect(() => {
     refreshStories();
     refreshMeta();
+    // load watched stories for current user
+    (async () => {
+      const { data } = await (supabase as any).from('story_watchers').select('story_id');
+      setWatchedSet(new Set((data || []).map((r: any) => r.story_id)));
+    })();
     const channel = supabase.channel(`stories:${projectId}`);
     channel
       .on(
@@ -156,21 +174,33 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         dest.stories.splice(index, 0, moved);
         return copy;
       });
+      // Notify watchers
+      if (watchedSet.has(storyId)) {
+        toast({ title: 'Story moved', description: 'A story you watch was moved.' });
+      }
     });
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
-  }, [subscribe]);
+  }, [subscribe, watchedSet]);
 
   // Subscribe to edits to force refresh
   useEffect(() => {
     const unsub = subscribe('story.edited', () => {
       void refreshStories();
+      // We do not have story id here in current payload? The publisher sends { id }
+    });
+    const unsub2 = subscribe('story.edited', (payload: any) => {
+      const id = (payload && (payload as any).id) as string | undefined;
+      if (id && watchedSet.has(id)) {
+        toast({ title: 'Story updated', description: 'A story you watch was edited.' });
+      }
     });
     return () => {
       if (typeof unsub === 'function') unsub();
+      if (typeof unsub2 === 'function') unsub2();
     };
-  }, [subscribe, refreshStories]);
+  }, [subscribe, refreshStories, watchedSet]);
 
   /**
    * Handle a drag end event from the DnD context. If a card was moved
@@ -335,7 +365,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                   ))}
                                 </select>
                               </div>
-                              <div className="flex items-center gap-2 justify-end">
+                               <div className="flex items-center gap-2 justify-end">
                                 <button className="text-sm px-2 py-1 rounded border" onClick={cancelEdit}>Cancel</button>
                                 <button className="text-sm px-2 py-1 rounded bg-blue-600 text-white" onClick={saveEdit}>Save</button>
                               </div>
@@ -359,7 +389,23 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                   )}
                                   <span className="text-xs text-zinc-600">{story.assigned_to ? (memberById.get(story.assigned_to)?.full_name || 'User') : 'Unassigned'}</span>
                                 </div>
-                                <button className="text-xs text-blue-600" onClick={() => startEdit(story)}>Edit</button>
+                                <div className="flex items-center gap-3">
+                                  <button className="text-xs text-blue-600" onClick={() => startEdit(story)}>Edit</button>
+                                  <WatchToggle
+                                    storyId={story.id}
+                                    onChange={(isWatching) => {
+                                      setWatchedSet((prev) => {
+                                        const next = new Set(prev);
+                                        if (isWatching) next.add(story.id);
+                                        else next.delete(story.id);
+                                        return next;
+                                      });
+                                    }}
+                                    onBroadcast={async (isWatching) => {
+                                      await publish('story.watched', { storyId: story.id, watching: isWatching });
+                                    }}
+                                  />
+                                </div>
                               </div>
                               {story.due_date && (
                                 <div className="text-[10px] text-zinc-500 mt-1">Due: {story.due_date}</div>
@@ -378,5 +424,57 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         </div>
       </DragDropContext>
     </div>
+  );
+}
+
+function WatchToggle({ storyId, onChange, onBroadcast }: { storyId: string; onChange?: (watching: boolean) => void; onBroadcast?: (watching: boolean) => Promise<void> | void }) {
+  const supabase = createSupabaseBrowserClient();
+  const [watching, setWatching] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('story_watchers')
+        .select('story_id')
+        .eq('story_id', storyId)
+        .limit(1);
+      if (mounted) setWatching((data || []).length > 0);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [storyId]);
+
+  const toggle = async () => {
+    setLoading(true);
+    try {
+      if (!watching) {
+        const { error } = await (supabase as any).from('story_watchers').insert({ story_id: storyId });
+        if (error) throw error;
+        toast({ title: 'Watching', description: 'You will be notified about changes.' });
+        setWatching(true);
+        onChange?.(true);
+        await onBroadcast?.(true);
+      } else {
+        const { error } = await (supabase as any).from('story_watchers').delete().eq('story_id', storyId);
+        if (error) throw error;
+        toast({ title: 'Unwatched', description: 'Stopped notifications for this story.' });
+        setWatching(false);
+        onChange?.(false);
+        await onBroadcast?.(false);
+      }
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to update watch' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button aria-label={watching ? 'Unwatch story' : 'Watch story'} className={cn('text-xs', watching ? 'text-amber-600' : 'text-zinc-600')} onClick={toggle} disabled={loading}>
+      {watching ? 'Watching' : 'Watch'}
+    </button>
   );
 }

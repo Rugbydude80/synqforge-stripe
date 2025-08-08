@@ -59,6 +59,13 @@ export function useAblyChannel(channelName: string, clientId: string) {
     await channelRef.current.publish(event, data);
   }, []);
 
+  const updatePresence = useCallback(async (data: AnyData) => {
+    if (!channelRef.current) return;
+    try {
+      await channelRef.current.presence.update(data);
+    } catch {}
+  }, []);
+
   const subscribe = useCallback(
     (event: string, callback: (data: AnyData) => void) => {
       if (!channelRef.current) return () => {};
@@ -85,6 +92,7 @@ export function useAblyChannel(channelName: string, clientId: string) {
     presence,
     publish,
     subscribe,
+    updatePresence,
     sendCursorMove,
     sendStoryMoved
   } as const;
