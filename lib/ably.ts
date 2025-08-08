@@ -1,12 +1,34 @@
-export type AblyRealtime = unknown;
+// Ably Realtime client factory for browser usage only
+// Uses token auth via /api/ably/auth and sets clientId from caller
 
-export async function getAblyRealtime(): Promise<AblyRealtime> {
-  if (!process.env.ABLY_API_KEY) {
-    throw new Error('Missing ABLY_API_KEY in environment.');
+let ablyPromiseByClientId: Record<string, Promise<any>> = {};
+
+export async function getAblyRealtime(clientId: string) {
+  if (!clientId) throw new Error('getAblyRealtime requires a clientId');
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    // Ensure envs are loaded in Next runtime; this avoids silent failures
   }
-  throw new Error(
-    'Ably client not installed. Add the "ably" SDK and implement getAblyRealtime().' 
-  );
+
+  if (!ablyPromiseByClientId[clientId]) {
+    ablyPromiseByClientId[clientId] = (async () => {
+      if (typeof window === 'undefined') {
+        // Avoid instantiating Ably on the server
+        return null;
+      }
+      const Ably = await import('ably');
+      const client = new Ably.Realtime.Promise({
+        clientId,
+        authUrl: '/api/ably/auth',
+        echoMessages: true,
+        recover: 'connection',
+        closeOnUnload: true,
+        transportParams: { remainPresentFor: 60_000 }
+      });
+      return client;
+    })();
+  }
+
+  return ablyPromiseByClientId[clientId];
 }
 
 
