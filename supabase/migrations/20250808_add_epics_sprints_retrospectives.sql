@@ -106,13 +106,19 @@ ALTER TABLE stories
 
 -- RLS policy update: ensure project members can update stories
 -- This complements the existing access policy for stories.
-CREATE POLICY IF NOT EXISTS "Project members can update stories"
-  ON stories
-  FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.user_id = auth.uid()
-        AND project_members.project_id = stories.project_id
-    )
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'stories' AND policyname = 'Project members can update stories'
+  ) THEN
+    CREATE POLICY "Project members can update stories"
+      ON stories
+      FOR UPDATE
+      USING (
+        EXISTS (
+          SELECT 1 FROM project_members
+          WHERE project_members.user_id = auth.uid()
+            AND project_members.project_id = stories.project_id
+        )
+      );
+  END IF;
+END $$;
