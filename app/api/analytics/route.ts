@@ -70,14 +70,15 @@ export async function GET(request: Request) {
   const inProgressCount = await countStories('in_progress');
   const reviewCount = await countStories('review');
   const doneCount = await countStories('done');
-  // Velocity: number of stories completed in the period
-  const { count: velocityCount } = await supabase
+  // Velocity: total points completed in the period
+  const { data: doneStories } = await supabase
     .from('stories')
-    .select('*', { count: 'exact', head: true })
+    .select('points, updated_at')
     .in('project_id', projectIds)
     .eq('status', 'done')
     .gte('updated_at', startDate)
     .lte('updated_at', endDate);
+  const velocityPoints = (doneStories ?? []).reduce((sum, s) => sum + (s.points ?? 0), 0);
   // AI usage: sum tokens used per day (simple measure)
   const { data: aiOps } = await supabase
     .from('ai_operations')
@@ -86,16 +87,21 @@ export async function GET(request: Request) {
     .gte('created_at', startDate)
     .lte('created_at', endDate);
   const totalTokens = (aiOps ?? []).reduce((sum, op) => sum + (op.tokens_used ?? 0), 0);
-  // Build burndown chart data: for simplicity we return an array of objects with
-  // the date and remaining stories. In a real application you would compute
-  // remaining work over time. Here we derive a simple linear burndown.
-  const days = 5;
+  // Burndown: remaining points per day (simplified calculation)
+  const totalOpenPointsQuery = await supabase
+    .from('stories')
+    .select('points')
+    .in('project_id', projectIds)
+    .in('status', ['backlog', 'in_progress', 'review']);
+  const totalOpenPoints = (totalOpenPointsQuery.data ?? []).reduce((sum, s) => sum + (s.points ?? 0), 0);
+  const totalDonePoints = velocityPoints;
+  const days = 7;
   const burndown = Array.from({ length: days }, (_, i) => {
-    const remaining = backlogCount + inProgressCount + reviewCount + doneCount;
-    return {
-      date: new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000).toISOString().substring(0, 10),
-      remaining
-    };
+    const date = new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000);
+    const dayStr = date.toISOString().substring(0, 10);
+    // naive linear interpolation from total to 0 across the period
+    const remaining = Math.max(totalOpenPoints - Math.round((totalDonePoints / days) * i), 0);
+    return { date: dayStr, remaining };
   });
   const analytics = {
     distribution: {
@@ -104,7 +110,7 @@ export async function GET(request: Request) {
       review: reviewCount,
       done: doneCount
     },
-    velocity: velocityCount ?? 0,
+    velocity: velocityPoints,
     aiUsage: {
       totalTokens
     },

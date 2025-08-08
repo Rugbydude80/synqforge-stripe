@@ -67,6 +67,7 @@ interface Retrospective {
   sprint_id: string;
   summary: string | null;
   notes: string | null;
+  tags?: Record<string, string[]> | null;
   created_at: string | null;
 }
 
@@ -76,6 +77,8 @@ function RetrospectivesManager({ projectId, organisationId }: { projectId: strin
   const [retros, setRetros] = useState<Retrospective[]>([]);
   const [selectedSprint, setSelectedSprint] = useState<string>('');
   const [generating, setGenerating] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Retrospective>>({});
 
   // Load sprints and retrospectives from Supabase
   const refreshData = async () => {
@@ -155,6 +158,20 @@ function RetrospectivesManager({ projectId, organisationId }: { projectId: strin
     }
   };
 
+  const saveRetro = async () => {
+    if (!editing) return;
+    const payload: any = { summary: editForm.summary ?? null, notes: editForm.notes ?? null, tags: editForm.tags ?? null };
+    const { error } = await supabase.from('retrospectives').update(payload).eq('id', editing);
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save retrospective' });
+    } else {
+      toast({ title: 'Saved', description: 'Retrospective updated' });
+      setEditing(null);
+      setEditForm({});
+      void refreshData();
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-xl font-bold">Sprint Retrospectives</h1>
@@ -192,15 +209,46 @@ function RetrospectivesManager({ projectId, organisationId }: { projectId: strin
                 <h2 className="font-semibold text-lg">
                   Retrospective: {sprint ? sprint.name : 'Unknown Sprint'}
                 </h2>
-                {retro.summary && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">
-                    <strong>Summary:</strong> {retro.summary}
-                  </p>
-                )}
-                {retro.notes && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">
-                    <strong>Notes:</strong> {retro.notes}
-                  </p>
+                {editing === retro.id ? (
+                  <div className="space-y-2 mt-2">
+                    <textarea className="w-full rounded border p-2 text-sm" rows={3} value={editForm.summary ?? retro.summary ?? ''} onChange={(e) => setEditForm((f) => ({ ...f, summary: e.target.value }))} />
+                    <textarea className="w-full rounded border p-2 text-sm" rows={6} value={editForm.notes ?? retro.notes ?? ''} onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {['what_went_well', "what_didnt", 'ideas'].map((k) => (
+                        <input key={k} className="w-full rounded border p-2 text-xs" placeholder={`${k.replace('_', ' ')} (comma separated)`}
+                          value={((editForm.tags ?? retro.tags ?? {}) as any)[k]?.join(',') ?? ''}
+                          onChange={(e) => setEditForm((f) => ({ ...f, tags: { ...(f.tags ?? retro.tags ?? {}), [k]: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) } as any }))}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <button className="text-sm px-2 py-1 rounded border" onClick={() => { setEditing(null); setEditForm({}); }}>Cancel</button>
+                      <button className="text-sm px-2 py-1 rounded bg-blue-600 text-white" onClick={saveRetro}>Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {retro.summary && (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">
+                        <strong>Summary:</strong> {retro.summary}
+                      </p>
+                    )}
+                    {retro.notes && (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">
+                        <strong>Notes:</strong> {retro.notes}
+                      </p>
+                    )}
+                    {retro.tags && (
+                      <div className="text-xs text-gray-600 dark:text-gray-300 mt-2 space-y-1">
+                        {Object.entries(retro.tags as Record<string, string[]>).map(([k, v]) => (
+                          <div key={k}><strong>{k}:</strong> {v.join(', ')}</div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex justify-end mt-2">
+                      <button className="text-sm text-blue-600" onClick={() => { setEditing(retro.id); setEditForm({ summary: retro.summary ?? '', notes: retro.notes ?? '', tags: retro.tags ?? {} }); }}>Edit</button>
+                    </div>
+                  </div>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                   Generated {retro.created_at ? new Date(retro.created_at).toLocaleString() : ''}

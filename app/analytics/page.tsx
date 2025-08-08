@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 
 interface AnalyticsData {
   distribution: { backlog: number; in_progress: number; review: number; done: number };
-  velocity: number;
+  velocity: number; // points
   aiUsage: { totalTokens: number };
   burndown: Array<{ date: string; remaining: number }>;
   error?: string;
@@ -76,21 +76,22 @@ export default function AnalyticsPage() {
         </div>
         <div className="rounded bg-zinc-100 dark:bg-zinc-900 p-4">
           <h2 className="font-medium mb-2">Velocity</h2>
-          <p className="text-sm">{data.velocity} stories completed between the selected dates.</p>
+          <p className="text-sm">{data.velocity} points completed between the selected dates.</p>
         </div>
         <div className="rounded bg-zinc-100 dark:bg-zinc-900 p-4">
           <h2 className="font-medium mb-2">AI Usage</h2>
           <p className="text-sm">{data.aiUsage.totalTokens} tokens consumed.</p>
         </div>
         <div className="rounded bg-zinc-100 dark:bg-zinc-900 p-4">
-          <h2 className="font-medium mb-2">Burndown</h2>
-          <ul className="text-sm space-y-1">
+          <h2 className="font-medium mb-2">Burndown (points)</h2>
+          <div className="w-full h-40 flex items-end gap-1">
             {data.burndown.map((item) => (
-              <li key={item.date} className="flex justify-between">
-                <span>{item.date}</span> <span>{item.remaining}</span>
-              </li>
+              <div key={item.date} className="flex-1 flex flex-col items-center">
+                <div className="w-full bg-blue-500" style={{ height: `${Math.min(item.remaining, 100)}%` }} />
+                <span className="text-[10px] mt-1">{item.date.slice(5)}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
     </div>

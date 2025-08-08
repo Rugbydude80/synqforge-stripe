@@ -185,6 +185,8 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           description: string | null;
           status: 'backlog' | 'in_progress' | 'review' | 'done';
           assigned_to: string | null;
+          points: number | null;
+          due_date: string | null; // YYYY-MM-DD
           priority: number | null;
           ai_generated: boolean | null;
           created_at: string | null;
@@ -201,6 +203,8 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           description?: string | null;
           status?: 'backlog' | 'in_progress' | 'review' | 'done';
           assigned_to?: string | null;
+          points?: number | null;
+          due_date?: string | null;
           priority?: number | null;
           ai_generated?: boolean | null;
           created_at?: string | null;
@@ -215,6 +219,8 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           description?: string | null;
           status?: 'backlog' | 'in_progress' | 'review' | 'done';
           assigned_to?: string | null;
+          points?: number | null;
+          due_date?: string | null;
           priority?: number | null;
           ai_generated?: boolean | null;
           created_at?: string | null;
@@ -341,6 +347,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           sprint_id: string;
           summary: string | null;
           notes: string | null;
+          tags: Record<string, unknown> | null;
           created_at: string | null;
         };
         Insert: {
@@ -348,6 +355,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           sprint_id: string;
           summary?: string | null;
           notes?: string | null;
+          tags?: Record<string, unknown> | null;
           created_at?: string | null;
         };
         Update: {
@@ -355,6 +363,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           sprint_id?: string;
           summary?: string | null;
           notes?: string | null;
+          tags?: Record<string, unknown> | null;
           created_at?: string | null;
         };
         Relationships: [

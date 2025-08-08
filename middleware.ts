@@ -25,8 +25,32 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Update Supabase session for all requests
-  return await updateSession(request);
+  // Protect pages by requiring auth (allow public assets and auth routes)
+  const protectedPaths = [
+    '/app',
+    '/analytics',
+    '/backlog',
+    '/epics',
+    '/retrospectives',
+    '/sprint',
+    '/sprints',
+    '/account',
+    '/ai'
+  ];
+  const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p));
+
+  const response = await updateSession(request);
+  if (isProtected) {
+    // We need to check the user session using a server client hooked to this response
+    // but updateSession already refreshed cookies. We'll rely on an auth cookie presence.
+    const hasSession = request.cookies.get('sb-access-token') || request.cookies.get('sb:token');
+    if (!hasSession) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/signin';
+      return NextResponse.redirect(url);
+    }
+  }
+  return response;
 }
 
 export const config = {

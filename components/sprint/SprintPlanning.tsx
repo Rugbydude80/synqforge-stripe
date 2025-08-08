@@ -21,7 +21,7 @@ interface SprintPlan {
 }
 
 export function SprintPlanning({ projectId }: { projectId: string }) {
-  const [capacity, setCapacity] = useState<number>(5);
+  const [capacity, setCapacity] = useState<number>(10);
   const [velocity, setVelocity] = useState<number>(5);
   const [duration, setDuration] = useState<number>(14);
   const [plan, setPlan] = useState<SprintPlan | null>(null);
@@ -62,7 +62,7 @@ export function SprintPlanning({ projectId }: { projectId: string }) {
     <div className="space-y-6">
       <div className="space-y-2">
         <label className="block text-sm font-medium" htmlFor="capacity">
-          Team Capacity (number of stories)
+          Team Capacity (total story points)
         </label>
         <input
           id="capacity"
@@ -112,6 +112,9 @@ export function SprintPlanning({ projectId }: { projectId: string }) {
       {plan && (
         <div className="space-y-4">
           <p className="font-medium">{plan.summary}</p>
+          <div className="text-sm text-zinc-600 dark:text-zinc-300">
+            Total points: {plan.suggestedStories.reduce((sum, s) => sum + (s.points || 0), 0)} / {capacity}
+          </div>
           <ul className="list-disc pl-5 space-y-1">
             {plan.suggestedStories.map((story) => (
               <li key={story.id}>

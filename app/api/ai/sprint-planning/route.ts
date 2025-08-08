@@ -29,21 +29,29 @@ export async function POST(request: Request) {
   // Fetch all stories that are not yet completed
   const { data: stories, error: storiesError } = await supabase
     .from('stories')
-    .select('*')
+    .select('id, title, created_at, points')
     .eq('project_id', projectId)
     .in('status', ['backlog', 'in_progress', 'review']);
   if (storiesError) {
     return NextResponse.json({ error: 'Failed to fetch stories' }, { status: 500 });
   }
-  // Sort by creation date and pick up to the team capacity
+  // Sort by creation date and pick stories whose total points <= teamCapacity
   const sorted = (stories ?? []).sort((a, b) => {
     const da = new Date(a.created_at ?? 0).getTime();
     const db = new Date(b.created_at ?? 0).getTime();
     return da - db;
   });
-  const selected = sorted.slice(0, Math.min(teamCapacity, sorted.length));
+  let runningTotal = 0;
+  const selected: { id: string; title: string; points: number }[] = [];
+  for (const s of sorted) {
+    const pts = typeof s.points === 'number' && !Number.isNaN(s.points) ? s.points : 0;
+    if (runningTotal + pts <= teamCapacity) {
+      runningTotal += pts;
+      selected.push({ id: s.id, title: s.title, points: pts });
+    }
+  }
   return NextResponse.json({
-    summary: `AI suggests selecting ${selected.length} stories for the next sprint based on your capacity of ${teamCapacity} and historical velocity of ${historicalVelocity}.`,
-    suggestedStories: selected.map((s) => ({ id: s.id, title: s.title, points: 2 }))
+    summary: `AI suggests ${selected.length} stories totalling ${runningTotal} points for the next sprint based on capacity ${teamCapacity} and historical velocity ${historicalVelocity}.`,
+    suggestedStories: selected
   });
 }

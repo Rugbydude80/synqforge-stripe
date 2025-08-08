@@ -7,7 +7,7 @@
 // for remote drag events via Ably. When a user drags a card between columns
 // the change is persisted to Supabase and broadcast to other clients.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { useAblyChannel } from '@/hooks/useAblyChannel';
 import { createClient as createSupabaseBrowserClient } from '@/utils/supabase/client';
@@ -28,6 +28,10 @@ export interface Story {
   description: string | null;
   status: string;
   project_id: string;
+  assigned_to?: string | null;
+  points?: number | null;
+  due_date?: string | null;
+  sprint_id?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -42,6 +46,10 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   const supabase = createSupabaseBrowserClient();
   const [columns, setColumns] = useState<Column[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [members, setMembers] = useState<Array<{ user_id: string; full_name: string | null; avatar_url: string | null }>>([]);
+  const [sprints, setSprints] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<Story>>({});
 
   // Initialise Ably realtime channel for this project. We scope the clientId to
   // "kanban" because Ably requires a unique clientId per connection; if
@@ -76,6 +84,30 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
     setLoading(false);
   }, [projectId, supabase]);
 
+  // Fetch project members and active sprints for dropdowns/avatars
+  const refreshMeta = useCallback(async () => {
+    const { data: membersRows } = await supabase
+      .from('project_members')
+      .select('user_id')
+      .eq('project_id', projectId);
+    const ids = (membersRows || []).map((r) => r.user_id);
+    let mappedMembers: Array<{ user_id: string; full_name: string | null; avatar_url: string | null }> = [];
+    if (ids.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url')
+        .in('id', ids);
+      mappedMembers = (usersData || []).map((u) => ({ user_id: u.id, full_name: (u as any).full_name ?? null, avatar_url: (u as any).avatar_url ?? null }));
+    }
+    setMembers(mappedMembers);
+    const { data: sprintData } = await supabase
+      .from('sprints')
+      .select('id, name, status')
+      .eq('project_id', projectId)
+      .in('status', ['planning', 'active']);
+    setSprints(sprintData || []);
+  }, [projectId, supabase]);
+
   // Initial fetch and realtime subscription. On mount we fetch all stories
   // immediately. Then we subscribe to the Supabase realtime channel for
   // changes to the stories table. Whenever a change happens the full list
@@ -83,6 +115,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   // disappear.
   useEffect(() => {
     refreshStories();
+    refreshMeta();
     const channel = supabase.channel(`stories:${projectId}`);
     channel
       .on(
@@ -96,7 +129,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
     return () => {
       channel.unsubscribe();
     };
-  }, [projectId, refreshStories, supabase]);
+  }, [projectId, refreshStories, refreshMeta, supabase]);
 
   // Subscribe to remote drag events via Ably. When another user moves a story
   // we update our local state to reflect the new ordering and status. This
@@ -174,6 +207,50 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
     }
   };
 
+  const memberById = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members]);
+
+  const startEdit = (story: Story) => {
+    setEditingId(story.id);
+    setForm({
+      id: story.id,
+      title: story.title,
+      description: story.description,
+      assigned_to: story.assigned_to ?? null,
+      points: story.points ?? 0,
+      due_date: story.due_date ?? null,
+      sprint_id: story.sprint_id ?? null
+    } as any);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    try {
+      const payload: any = {
+        title: form.title,
+        description: form.description,
+        assigned_to: form.assigned_to ?? null,
+        points: typeof form.points === 'number' ? form.points : 0,
+        due_date: form.due_date ?? null,
+        sprint_id: form.sprint_id ?? null
+      };
+      const { error } = await supabase.from('stories').update(payload).eq('id', editingId);
+      if (error) throw error;
+      toast({ title: 'Saved', description: 'Story updated' });
+      setEditingId(null);
+      setForm({});
+      void refreshStories();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to save story' });
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm({});
+  };
+
   if (loading) {
     return <div className="p-4">Loading...</div>;
   }
@@ -207,12 +284,54 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                           {...dragProvided.dragHandleProps}
                           className="bg-white dark:bg-zinc-800 rounded p-2 mb-2 shadow"
                         >
-                          <div className="text-sm font-medium">
-                            {story.title}
-                          </div>
-                          {story.description && (
-                            <div className="text-xs text-zinc-500 mt-1">
-                              {story.description}
+                          {editingId === story.id ? (
+                            <div className="space-y-2">
+                              <input className="w-full rounded border p-1 text-sm" value={form.title as any as string || ''} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+                              <textarea className="w-full rounded border p-1 text-xs" rows={3} value={form.description as any as string || ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+                              <div className="flex items-center gap-2">
+                                <input className="w-20 rounded border p-1 text-sm" type="number" min={0} value={Number(form.points ?? 0)} onChange={(e) => setForm((f) => ({ ...f, points: Number(e.target.value) }))} />
+                                <input className="rounded border p-1 text-sm" type="date" value={(form.due_date as any as string) || ''} onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <select className="w-full rounded border p-1 text-sm" value={(form.assigned_to as any as string) || ''} onChange={(e) => setForm((f) => ({ ...f, assigned_to: e.target.value || null }))}>
+                                  <option value="">Unassigned</option>
+                                  {members.map((m) => (
+                                    <option key={m.user_id} value={m.user_id}>{m.full_name || m.user_id}</option>
+                                  ))}
+                                </select>
+                                <select className="w-full rounded border p-1 text-sm" value={(form.sprint_id as any as string) || ''} onChange={(e) => setForm((f) => ({ ...f, sprint_id: e.target.value || null }))}>
+                                  <option value="">No sprint</option>
+                                  {sprints.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name} [{s.status}]</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex items-center gap-2 justify-end">
+                                <button className="text-sm px-2 py-1 rounded border" onClick={cancelEdit}>Cancel</button>
+                                <button className="text-sm px-2 py-1 rounded bg-blue-600 text-white" onClick={saveEdit}>Save</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">{story.title}</div>
+                                <div className="text-xs text-zinc-600">{typeof story.points === 'number' ? `${story.points} pts` : ''}</div>
+                              </div>
+                              {story.description && (
+                                <div className="text-xs text-zinc-500 mt-1">{story.description}</div>
+                              )}
+                              <div className="flex items-center justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  {story.assigned_to && memberById.get(story.assigned_to)?.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={memberById.get(story.assigned_to)!.avatar_url!} alt="avatar" className="w-5 h-5 rounded-full" />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full bg-zinc-300" />
+                                  )}
+                                  <span className="text-xs text-zinc-600">{story.assigned_to ? (memberById.get(story.assigned_to)?.full_name || 'User') : 'Unassigned'}</span>
+                                </div>
+                                <button className="text-xs text-blue-600" onClick={() => startEdit(story)}>Edit</button>
+                              </div>
                             </div>
                           )}
                         </div>

@@ -24,6 +24,9 @@ export type Story = {
   description?: string | null;
   status: 'backlog' | 'in_progress' | 'review' | 'done';
   assignedTo?: string | null;
+  points?: number; // agile story points
+  dueDate?: string | null; // ISO date string (YYYY-MM-DD)
+  sprintId?: string | null;
   createdAt: string;
   updatedAt?: string;
   aiGenerated?: boolean;
