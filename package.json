@@ -19,7 +19,8 @@
     "supabase:generate-migration": "npx supabase db diff | npx supabase migration new",
     "supabase:generate-seed": "npx supabase db dump --data-only -f supabase/seed.sql",
     "supabase:push": "npx supabase db push",
-    "supabase:pull": "npx supabase db pull"
+    "supabase:pull": "npx supabase db pull",
+    "migrations:repair": "tsx scripts/repair-migrations.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",

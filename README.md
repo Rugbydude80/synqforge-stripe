@@ -200,6 +200,14 @@ You can make changes to the database schema in your local Supabase Studio and ru
 pnpm supabase:generate-types
 ```
 
+If you encounter duplicate policy errors when pushing new migrations, repair the initial migration status and then push pending migrations and regenerate types with:
+
+```bash
+pnpm migrations:repair
+```
+
+This runs `supabase migration repair --status applied --migrations 20240501_create_core_schema.sql`, then pushes migrations and regenerates TypeScript types.
+
 You can also automatically generate a migration file with all the changes you've made to your local database schema with the following command:
 
 ```bash

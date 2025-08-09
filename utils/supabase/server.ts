@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import '@/lib/env';
 // Use the extended Database type that includes SynqForge tables. See
 // '@/types/extended-db' for details.
 import type { Database } from '@/types/extended-db';

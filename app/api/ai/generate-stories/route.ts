@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { redis } from '@/lib/redis';
 import { inngest } from '@/lib/inngest';
+import { callAI, type ChatMessage } from '@/lib/aiModelRouter';
 import crypto from 'crypto';
 
 /**
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
   // Kick off the AI generation and caching in the background
   (async () => {
     try {
-      const cacheKey = `stories:${hash(requirements)}`;
+      const cacheKey = `stories:${hash(requirements + (dueStart||'') + (dueEnd||'') + (priority||''))}`;
       const cached = await redis.get(cacheKey);
       if (cached && !force) {
         // If cached stories exist, send them directly
@@ -90,32 +91,17 @@ export async function POST(req: Request) {
         return;
       }
 
-      // If not cached, call OpenRouter to generate stories
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? '',
-          'X-Title': 'SynqForge Story Generation',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: model || 'openai/gpt-4-turbo-preview',
-          messages: [
-            { role: 'system', content: 'You are a story generator for agile planning. Generate user stories based on the given requirements. Where provided, incorporate due date constraints and priority levels.' },
-            { role: 'user', content: [
-              requirements,
-              dueStart && dueEnd ? `\nConstraints: Due between ${dueStart} and ${dueEnd}.` : '',
-              priority ? `\nPriority: ${priority}.` : ''
-            ].filter(Boolean).join('') }
-          ],
-          stream: true,
-          temperature: 0.7,
-          max_tokens: 4000
-        })
-      });
-
-      const reader = response.body?.getReader();
+      // Build prompt and stream from model router (Gemini streaming by default)
+      const messages: ChatMessage[] = [
+        { role: 'system', content: 'You are a story generator for agile planning. Generate user stories based on the given requirements. Where provided, incorporate due date constraints and priority levels. Output as sections separated by blank lines, each with Title: and Description: lines.' },
+        { role: 'user', content: [
+          requirements,
+          dueStart && dueEnd ? `\nConstraints: Due between ${dueStart} and ${dueEnd}.` : '',
+          priority ? `\nPriority: ${priority}.` : ''
+        ].filter(Boolean).join('') }
+      ];
+      const ai = await callAI('stories', messages, undefined, { force });
+      const reader = ai.stream?.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       const newStories: any[] = [];
@@ -125,7 +111,6 @@ export async function POST(req: Request) {
         if (done) break;
         const chunk = decoder.decode(value);
         for (const line of chunk.split('\n')) {
-          // Only process lines starting with "data: "
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6);
           if (data === '[DONE]') continue;
@@ -133,9 +118,7 @@ export async function POST(req: Request) {
             const json = JSON.parse(data);
             const content = json.choices?.[0]?.delta?.content || '';
             buffer += content;
-            // Split the buffer into individual stories by delimiter (###)
             const parts = buffer.split(/\n\n/);
-            // Keep the last partial segment in buffer
             buffer = parts.pop() || '';
             for (const part of parts) {
               const titleMatch = part.match(/^Title:\s*(.*)/m);
@@ -147,16 +130,15 @@ export async function POST(req: Request) {
                 status: 'backlog',
                 ai_generated: true,
                 priority: priority || null,
-                due_date: dueEnd || null
+                due_date: dueEnd || null,
+                points: 0
               };
               newStories.push(story);
-              // Emit story via SSE
               await writer.write(
                 encoder.encode(
                   `data: ${JSON.stringify({ type: 'story', story })}\n\n`
                 )
               );
-              // Persist to database
               await supabase.from('stories').insert({
                 project_id: projectId,
                 title: story.title,
@@ -164,12 +146,11 @@ export async function POST(req: Request) {
                 status: 'backlog',
                 ai_generated: true,
                 priority: priority || null,
-                due_date: dueEnd || null
+                due_date: dueEnd || null,
+                points: 0
               });
             }
-          } catch (_e) {
-            // ignore partial JSON
-          }
+          } catch {}
         }
       }
       // Cache the results for one hour

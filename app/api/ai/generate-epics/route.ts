@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { redis } from '@/lib/redis';
 import { inngest } from '@/lib/inngest';
+import { callAI, type ChatMessage } from '@/lib/aiModelRouter';
 import crypto from 'crypto';
 
 /**
@@ -104,56 +105,58 @@ export async function POST(req: Request) {
         await writer.close();
         return;
       }
-      // Call OpenRouter to generate epics and tasks.  We request a JSON
-      // structure to simplify parsing.  See documentation at
-      // https://openrouter.ai for supported parameters.  We disable
-      // streaming here to receive the full response at once.
-      const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? '',
-          'X-Title': 'SynqForge Epic Generator',
-          'Content-Type': 'application/json'
+      const messages: ChatMessage[] = [
+        {
+          role: 'system',
+          content:
+            'You are an assistant that outputs agile epics and tasks in JSON. Given a product requirements document, generate a JSON object with an `epics` array. Each element should have `name`, `description`, and a `tasks` array of objects with `title` and `description`. If constraints (due date range, priority) are provided, reflect them in the resulting tasks. Return only valid JSON matching the schema.'
         },
-        body: JSON.stringify({
-          model: model || 'openai/gpt-4-turbo-preview',
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are an assistant that outputs agile epics and tasks in JSON. Given a product requirements document, generate a JSON object with an `epics` array. Each element should have `name`, `description`, and a `tasks` array of objects with `title` and `description`. If constraints (due date range, priority) are provided, reflect them in the resulting tasks. Do not include any additional keys.'
-            },
-            { role: 'user', content: [
-              requirements,
-              dueStart && dueEnd ? `\nConstraints: Due between ${dueStart} and ${dueEnd}.` : '',
-              priority ? `\nPriority: ${priority}.` : ''
-            ].filter(Boolean).join('') }
-          ],
-          temperature: 0.7,
-          max_tokens: 3000,
-          stream: false
-        })
-      });
-      if (!openRouterResponse.ok) {
-        throw new Error(`OpenRouter error: ${openRouterResponse.statusText}`);
-      }
-      const openRouterData = await openRouterResponse.json();
-      const content: string | undefined = openRouterData?.choices?.[0]?.message?.content;
+        { role: 'user', content: [
+          requirements,
+          dueStart && dueEnd ? `\nConstraints: Due between ${dueStart} and ${dueEnd}.` : '',
+          priority ? `\nPriority: ${priority}.` : ''
+        ].filter(Boolean).join('') }
+      ];
+      const schema = {
+        name: 'epics_schema',
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            epics: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  tasks: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      properties: {
+                        title: { type: 'string' },
+                        description: { type: 'string' }
+                      },
+                      required: ['title']
+                    }
+                  }
+                },
+                required: ['name']
+              }
+            }
+          },
+          required: ['epics']
+        }
+      } as const;
+      const ai = await callAI('epics', messages, schema, { modelOverride: 'gpt-4o-mini', force });
+      const content: string | undefined = ai.text;
       if (!content) {
         throw new Error('Empty AI response');
       }
-      let parsedJson: { epics: { name: string; description: string; tasks: { title: string; description: string }[] }[] };
-      try {
-        parsedJson = JSON.parse(content);
-      } catch (err) {
-        // Try to extract JSON from within code block or plain text
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('Failed to parse AI JSON');
-        }
-        parsedJson = JSON.parse(jsonMatch[0]);
-      }
+      const parsedJson: { epics: { name: string; description?: string; tasks?: { title: string; description?: string }[] }[] } = ai.json ?? JSON.parse(content);
       const storedEpics: any[] = [];
       for (const epic of parsedJson.epics || []) {
         // Insert epic into database

@@ -1,9 +1,11 @@
 import Ably from 'ably';
+import { validateEnv } from '@/lib/env';
 
 let restClient: Ably.Rest | null = null;
 
 function getRest(): Ably.Rest {
   if (!restClient) {
+    validateEnv();
     const key = process.env.ABLY_API_KEY;
     if (!key) throw new Error('ABLY_API_KEY not set');
     restClient = new Ably.Rest(key);

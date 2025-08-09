@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { inngest } from '@/lib/inngest';
+import { callAI, type ChatMessage } from '@/lib/aiModelRouter';
 
 export const runtime = 'nodejs';
 
@@ -75,47 +76,28 @@ export async function POST(req: Request) {
     'Return the result as JSON with keys "summary" and "notes" only. Do not include any additional keys.'
   ].join('\n');
   try {
-    // Call OpenRouter to get the retrospective summary
-    const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? '',
-        'X-Title': 'SynqForge Retrospective Generator',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: model || 'openai/gpt-4-turbo-preview',
-        messages: [
-          { role: 'system', content: 'You are an AI assistant that writes agile sprint retrospectives.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.6,
-        max_tokens: 2000,
-        stream: false
-      })
-    });
-    if (!aiResponse.ok) {
-      throw new Error(`OpenRouter error: ${aiResponse.statusText}`);
-    }
-    const aiData = await aiResponse.json();
-    const content: string | undefined = aiData?.choices?.[0]?.message?.content;
+    const messages: ChatMessage[] = [
+      { role: 'system', content: 'You are an AI assistant that writes agile sprint retrospectives.' },
+      { role: 'user', content: prompt }
+    ];
+    const schema = {
+      name: 'retrospective',
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          summary: { type: 'string' },
+          notes: { type: 'string' }
+        },
+        required: ['summary', 'notes']
+      }
+    } as const;
+    const ai = await callAI('retrospective', messages, schema, { modelOverride: 'gpt-4o-mini' });
+    const content: string | undefined = ai.text;
     if (!content) {
       throw new Error('Empty AI response');
     }
-    // Parse JSON from the AI response.  The response should be a JSON
-    // object with summary and notes fields.  If parsing fails, try
-    // extracting the first JSON block.
-    let parsed: { summary: string; notes: string };
-    try {
-      parsed = JSON.parse(content);
-    } catch (_err) {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (!match) {
-        throw new Error('Failed to parse retrospective JSON');
-      }
-      parsed = JSON.parse(match[0]);
-    }
+    const parsed: { summary: string; notes: string } = ai.json ?? JSON.parse(content);
     // Insert retrospective into database
     const { data: insertResult, error: insertError } = await supabase
       .from('retrospectives')

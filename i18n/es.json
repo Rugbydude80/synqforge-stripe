@@ -1,0 +1,30 @@
+{
+  "navbar": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "notifications": "Notificaciones",
+    "markAllRead": "Marcar todo como leído",
+    "noUnread": "No hay notificaciones sin leer."
+  },
+  "kanban": {
+    "searchPlaceholder": "Buscar historias",
+    "allStatuses": "Todos los estados",
+    "allAssignees": "Todos los asignados",
+    "allSprints": "Todos los sprints",
+    "reset": "Restablecer",
+    "edit": "Editar",
+    "watch": "Seguir",
+    "unwatch": "Dejar de seguir",
+    "due": "Vence"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "workload": "Carga por estado",
+    "upcomingDue": "Vencimientos próximos (14 días)",
+    "projects": "Proyectos",
+    "aiUsage": "Uso de créditos de IA",
+    "avgVelocity": "Velocidad promedio"
+  }
+}
+
+
