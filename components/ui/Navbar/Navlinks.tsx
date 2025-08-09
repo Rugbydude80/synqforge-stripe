@@ -89,31 +89,29 @@ export default function Navlinks({ user }: NavlinksProps) {
               <Link href="/account" className={s.link}>
                 Account
               </Link>
-              {isFreelancerMode() && (
-                <span className="inline-flex items-center gap-1 ml-2 text-zinc-500">|</span>
-              )}
-              {isFreelancerMode() && (
-                <>
-                  <Link href="/solo/ingest" className={s.link}>
-                    Freelancer: Ingest
-                  </Link>
-                  <Link href="/solo/generate" className={s.link}>
-                    Generate
-                  </Link>
-                  <Link href="/solo/backlog" className={s.link}>
-                    Solo Backlog
-                  </Link>
-                  <Link href="/solo/sprints" className={s.link}>
-                    Sprints
-                  </Link>
-                  <Link href="/solo/planning" className={s.link}>
-                    Planning
-                  </Link>
-                  <Link href="/solo/analytics" className={s.link}>
-                    Analytics
-                  </Link>
-                </>
-              )}
+            </>
+          )}
+          {isFreelancerMode() && (
+            <>
+              <span className="inline-flex items-center gap-1 ml-2 text-zinc-500">|</span>
+              <Link href="/solo/ingest" className={s.link}>
+                Freelancer: Ingest
+              </Link>
+              <Link href="/solo/generate" className={s.link}>
+                Generate
+              </Link>
+              <Link href="/solo/backlog" className={s.link}>
+                Solo Backlog
+              </Link>
+              <Link href="/solo/sprints" className={s.link}>
+                Sprints
+              </Link>
+              <Link href="/solo/planning" className={s.link}>
+                Planning
+              </Link>
+              <Link href="/solo/analytics" className={s.link}>
+                Analytics
+              </Link>
             </>
           )}
         </nav>
