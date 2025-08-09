@@ -3,16 +3,24 @@ import { isDemoMode } from '@/lib/env';
 import type { Database } from '@/types/extended-db';
 
 // Minimal in-memory adapter for Demo Mode (client-side)
-let demoDb: {
-  clients: any[];
-  ingests: any[];
-  story_candidates: any[];
-  stories: any[];
-} | null = null;
+let demoDb: Record<string, any[]> | null = null;
 
 function ensureDemoDb() {
   if (!demoDb) {
-    demoDb = { clients: [], ingests: [], story_candidates: [], stories: [] };
+    demoDb = {
+      clients: [],
+      ingests: [],
+      story_candidates: [],
+      stories: [],
+      projects: [],
+      project_members: [],
+      users: [],
+      user_profiles: [],
+      sprints: [],
+      story_watchers: [],
+      story_attachments: [],
+      notifications: []
+    } as Record<string, any[]>;
   }
   return demoDb;
 }
@@ -20,7 +28,7 @@ function ensureDemoDb() {
 function createDemoClient() {
   // Very small subset of Supabase client for this app's usage
   const db = ensureDemoDb();
-  const table = (name: keyof typeof db) => ({
+  const table = (name: string) => ({
     select: async () => ({ data: db[name], error: null }),
     insert: async (records: any | any[]) => {
       const arr = Array.isArray(records) ? records : [records];
@@ -31,22 +39,24 @@ function createDemoClient() {
     },
     update: (patch: any) => ({
       eq: async (col: string, val: any) => {
-        const idx = db[name].findIndex((r: any) => r[col] === val);
-        if (idx >= 0) db[name][idx] = { ...db[name][idx], ...patch };
-        return { data: idx >= 0 ? [db[name][idx]] : [], error: null };
+        const rows = db[name];
+        const idx = rows.findIndex((r: any) => r[col] === val);
+        if (idx >= 0) rows[idx] = { ...rows[idx], ...patch };
+        return { data: idx >= 0 ? [rows[idx]] : [], error: null };
       }
     }),
     delete: () => ({
       eq: async (col: string, val: any) => {
-        const before = db[name].length;
-        demoDb![name] = db[name].filter((r: any) => r[col] !== val);
+        const rows = db[name];
+        const before = rows.length;
+        demoDb![name] = rows.filter((r: any) => r[col] !== val);
         const deleted = before - demoDb![name].length;
         return { data: { deleted }, error: null };
       }
     })
   });
   return {
-    from: (t: keyof typeof db) => table(t),
+    from: (t: string) => table(t),
     auth: {
       getUser: async () => ({ data: { user: { id: 'demo-user' } }, error: null })
     }

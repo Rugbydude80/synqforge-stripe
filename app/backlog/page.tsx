@@ -1,6 +1,7 @@
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { redirect } from 'next/navigation';
+import { isDemoMode } from '@/lib/env';
 
 /**
  * BacklogPage
@@ -13,8 +14,7 @@ import { redirect } from 'next/navigation';
 export default async function BacklogPage() {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    // Redirect anonymous users to sign in
+  if (!user && !isDemoMode()) {
     redirect('/signin');
   }
   // Fetch the user profile to determine organisation membership. We need
@@ -23,9 +23,14 @@ export default async function BacklogPage() {
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('organisation_id')
-    .eq('user_id', user!.id)
+    .eq('user_id', (user as any)?.id || 'demo-user')
     .single();
-  if (!profile) {
+  if (!profile && isDemoMode()) {
+    // Create demo org/project so the board works in-memory
+    const orgId = 'demo-org';
+    await (supabase as any).from('projects').insert({ id: 'demo-project', organisation_id: orgId, name: 'Demo Project' });
+    await (supabase as any).from('user_profiles').insert({ user_id: 'demo-user', organisation_id: orgId, role: 'owner' });
+  } else if (!profile) {
     return (
       <div className="container mx-auto py-10">
         <h1 className="text-2xl font-bold mb-4">Backlog</h1>
@@ -39,7 +44,7 @@ export default async function BacklogPage() {
   const { data: projects } = await supabase
     .from('projects')
     .select('id, name')
-    .eq('organisation_id', profile.organisation_id)
+    .eq('organisation_id', (profile as any)?.organisation_id || 'demo-org')
     .order('created_at', { ascending: true })
     .limit(1);
   const project = projects?.[0];
