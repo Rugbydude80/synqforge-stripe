@@ -54,6 +54,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Story>>({});
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
+  const [attachmentsByStory, setAttachmentsByStory] = useState<Record<string, Array<{ id: string; file_name: string; file_url: string }>>>({});
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -140,6 +141,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       .eq('project_id', projectId)
       .in('status', ['planning', 'active']);
     setSprints(sprintData || []);
+    // Load attachments for visible stories (best-effort; refined after stories loaded)
   }, [projectId, supabase]);
 
   // Initial fetch and realtime subscription. On mount we fetch all stories
@@ -169,6 +171,21 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       channel.unsubscribe();
     };
   }, [projectId, refreshStories, refreshMeta, supabase]);
+
+  // After columns change, fetch attachments for listed stories
+  useEffect(() => {
+    (async () => {
+      const ids = columns.flatMap((c) => c.stories.map((s) => s.id));
+      if (ids.length === 0) return;
+      const { data } = await supabase.from('story_attachments').select('id, story_id, file_name, file_url').in('story_id', ids);
+      const grouped: Record<string, Array<{ id: string; file_name: string; file_url: string }>> = {};
+      (data || []).forEach((row: any) => {
+        if (!grouped[row.story_id]) grouped[row.story_id] = [];
+        grouped[row.story_id].push({ id: row.id, file_name: row.file_name, file_url: row.file_url });
+      });
+      setAttachmentsByStory(grouped);
+    })();
+  }, [columns, supabase]);
 
   // Persist filters in the URL
   useEffect(() => {
@@ -444,6 +461,13 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                   }
                                 }} />
                                 <button className="text-sm px-2 py-1 rounded border" onClick={() => document.getElementById(`file-${story.id}`)?.click()}>Attach</button>
+                              </div>
+                              <div className="text-[10px] text-zinc-600 space-y-1">
+                                {(attachmentsByStory[story.id] || []).map((a) => (
+                                  <div key={a.id}>
+                                    <a href={a.file_url} className="underline" target="_blank" rel="noreferrer">{a.file_name}</a>
+                                  </div>
+                                ))}
                               </div>
                               <div className="flex items-center gap-2">
                                 <select className="w-full rounded border p-1 text-sm" value={(form.assigned_to as any as string) || ''} onChange={(e) => setForm((f) => ({ ...f, assigned_to: e.target.value || null }))}>

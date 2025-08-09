@@ -129,6 +129,11 @@ export async function PUT(request: Request) {
           body: JSON.stringify({ sprintId: id, organisationId })
         });
       }
+      // Publish realtime event via Ably
+      try {
+        const { publishToProject } = await import('@/lib/ably-server');
+        await publishToProject((data as any).project_id, 'sprint.completed', { sprintId: id, totalPoints });
+      } catch {}
     }
   } catch {
     // best-effort; do not fail the response if retrospective generation errors
