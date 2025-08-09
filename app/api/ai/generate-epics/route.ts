@@ -39,13 +39,19 @@ export async function POST(req: Request) {
     organisationId,
     requirements,
     model,
-    force
+    force,
+    dueStart,
+    dueEnd,
+    priority
   } = (await req.json()) as {
     projectId: string;
     organisationId: string;
     requirements: string;
     model?: string;
     force?: boolean;
+    dueStart?: string;
+    dueEnd?: string;
+    priority?: 'low' | 'medium' | 'high';
   };
   // Validate input
   if (!projectId || !organisationId || !requirements) {
@@ -116,9 +122,13 @@ export async function POST(req: Request) {
             {
               role: 'system',
               content:
-                'You are an assistant that outputs agile epics and tasks in JSON. Given a product requirements document, generate a JSON object with an `epics` array. Each element should have `name`, `description`, and a `tasks` array of objects with `title` and `description`. Do not include any additional keys.'
+                'You are an assistant that outputs agile epics and tasks in JSON. Given a product requirements document, generate a JSON object with an `epics` array. Each element should have `name`, `description`, and a `tasks` array of objects with `title` and `description`. If constraints (due date range, priority) are provided, reflect them in the resulting tasks. Do not include any additional keys.'
             },
-            { role: 'user', content: requirements }
+            { role: 'user', content: [
+              requirements,
+              dueStart && dueEnd ? `\nConstraints: Due between ${dueStart} and ${dueEnd}.` : '',
+              priority ? `\nPriority: ${priority}.` : ''
+            ].filter(Boolean).join('') }
           ],
           temperature: 0.7,
           max_tokens: 3000,
@@ -175,7 +185,9 @@ export async function POST(req: Request) {
               description: task.description,
               status: 'backlog',
               epic_id: epicId,
-              ai_generated: true
+              ai_generated: true,
+              priority: priority || null,
+              due_date: dueEnd || null
             })
             .select()
             .maybeSingle();
@@ -201,6 +213,13 @@ export async function POST(req: Request) {
         tokensUsed += (bundle.tasks as any[]).length;
       }
       await inngest.send({ name: 'ai.credits.deduct', data: { organisationId, tokensUsed } });
+      // Notify user that generation is complete
+      try {
+        const { data: me } = await supabase.auth.getUser();
+        if (me?.user) {
+          await supabase.from('notifications').insert({ user_id: me.user.id, type: 'ai.epics.complete', data: { projectId, epics: storedEpics.length, message: 'AI epic generation finished.' } });
+        }
+      } catch {}
       // Emit completion event
       await writer.write(
         encoder.encode(

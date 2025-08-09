@@ -1,0 +1,51 @@
+-- Notifications table and Story Attachments
+-- Run: pnpm supabase:push
+
+-- 1) notifications
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null,
+  data jsonb not null default '{}'::jsonb,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notifications enable row level security;
+
+-- Only owner can read or update their notifications; inserts can be done by authenticated users (server-side contexts should use service key)
+create policy if not exists "notifications_select_owner" on public.notifications
+  for select using ( auth.uid() = user_id );
+
+create policy if not exists "notifications_update_owner" on public.notifications
+  for update using ( auth.uid() = user_id );
+
+create policy if not exists "notifications_insert_self_or_service" on public.notifications
+  for insert with check ( auth.uid() = user_id );
+
+-- 2) story_attachments
+create table if not exists public.story_attachments (
+  id uuid primary key default gen_random_uuid(),
+  story_id uuid not null references public.stories(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  file_name text not null,
+  file_url text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.story_attachments enable row level security;
+
+-- Owners can read their uploaded attachments; additionally allow readers who can read the story via membership
+create policy if not exists "attachments_select_owner" on public.story_attachments
+  for select using ( auth.uid() = user_id );
+
+create policy if not exists "attachments_insert_owner" on public.story_attachments
+  for insert with check ( auth.uid() = user_id );
+
+create policy if not exists "attachments_delete_owner" on public.story_attachments
+  for delete using ( auth.uid() = user_id );
+
+-- Helper index
+create index if not exists idx_story_attachments_story_id on public.story_attachments(story_id);
+
+

@@ -37,7 +37,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-4">Analytics</h1>
+      <h1 className="text-2xl font-bold mb-1">Analytics</h1>
+      <p className="text-sm text-zinc-600 mb-4">See cross-project insights on the <a href="/dashboard" className="text-blue-600 underline">Dashboard</a>.</p>
       {loading && <p>Loading analytics…</p>}
       {!loading && !data && <p>Failed to load analytics.</p>}
       {!loading && data && (

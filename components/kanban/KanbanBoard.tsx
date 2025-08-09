@@ -13,6 +13,7 @@ import { useAblyChannel } from '@/hooks/useAblyChannel';
 import { createClient as createSupabaseBrowserClient } from '@/utils/supabase/client';
 import { toast } from '@/components/ui/Toasts/use-toast';
 import { cn } from '@/utils/cn';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 // Define the statuses used by SynqForge. Additional statuses can be added here
 // and will automatically show up as columns.
@@ -53,6 +54,15 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Story>>({});
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [q, setQ] = useState<string>(searchParams.get('q') || '');
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(searchParams.get('assignee') || '');
+  const [sprintFilter, setSprintFilter] = useState<string>(searchParams.get('sprint') || '');
+  const [dueStart, setDueStart] = useState<string>(searchParams.get('dueStart') || '');
+  const [dueEnd, setDueEnd] = useState<string>(searchParams.get('dueEnd') || '');
 
   // Initialise Ably realtime channel for this project. We scope the clientId to
   // "kanban" because Ably requires a unique clientId per connection; if
@@ -66,11 +76,13 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
    */
   const refreshStories = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('stories')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: true });
+    let query = supabase.from('stories').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
+    if (statusFilter) query = query.eq('status', statusFilter);
+    if (assigneeFilter) query = query.eq('assigned_to', assigneeFilter);
+    if (sprintFilter) query = query.eq('sprint_id', sprintFilter);
+    if (dueStart) query = query.gte('due_date', dueStart);
+    if (dueEnd) query = query.lte('due_date', dueEnd);
+    const { data, error } = await query;
     if (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to load stories', error);
@@ -78,14 +90,22 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       setLoading(false);
       return;
     }
+    const filterText = q.trim().toLowerCase();
+    const filtered = (data || []).filter((s) => {
+      if (!filterText) return true;
+      return (
+        (s.title || '').toLowerCase().includes(filterText) ||
+        (s.description || '').toLowerCase().includes(filterText)
+      );
+    });
     const grouped: Column[] = STATUSES.map((status) => ({
       id: status.id,
       name: status.name,
-      stories: (data || []).filter((s) => s.status === status.id)
+      stories: filtered.filter((s) => s.status === status.id)
     }));
     setColumns(grouped);
     setLoading(false);
-  }, [projectId, supabase]);
+  }, [projectId, supabase, statusFilter, assigneeFilter, sprintFilter, dueStart, dueEnd, q]);
 
   // Fetch project members and active sprints for dropdowns/avatars
   const refreshMeta = useCallback(async () => {
@@ -149,6 +169,22 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       channel.unsubscribe();
     };
   }, [projectId, refreshStories, refreshMeta, supabase]);
+
+  // Persist filters in the URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    function setOrDelete(key: string, value: string) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    setOrDelete('q', q);
+    setOrDelete('status', statusFilter);
+    setOrDelete('assignee', assigneeFilter);
+    setOrDelete('sprint', sprintFilter);
+    setOrDelete('dueStart', dueStart);
+    setOrDelete('dueEnd', dueEnd);
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [q, statusFilter, assigneeFilter, sprintFilter, dueStart, dueEnd]);
 
   // Subscribe to remote drag events via Ably. When another user moves a story
   // we update our local state to reflect the new ordering and status. This
@@ -273,7 +309,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         points: typeof form.points === 'number' ? form.points : 0,
         due_date: form.due_date ?? null,
         sprint_id: form.sprint_id ?? null,
-        status: (form as any).status || undefined
+        status: (form as any).status || undefined,
+        priority: (form as any).priority ?? null
       };
       const { error } = await supabase.from('stories').update(payload).eq('id', editingId);
       if (error) throw error;
@@ -301,6 +338,51 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
 
   return (
     <div className="overflow-x-auto">
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-2 mb-3">
+        <div className="flex-1 min-w-[12rem]">
+          <label className="sr-only" htmlFor="story-search">Search</label>
+          <input id="story-search" className="w-full rounded border p-2 text-sm" placeholder="Search stories" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div>
+          <label className="sr-only" htmlFor="status-filter">Status</label>
+          <select id="status-filter" className="rounded border p-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All statuses</option>
+            {STATUSES.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="sr-only" htmlFor="assignee-filter">Assignee</label>
+          <select id="assignee-filter" className="rounded border p-2 text-sm" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
+            <option value="">All assignees</option>
+            {members.map((m) => (
+              <option key={m.user_id} value={m.user_id}>{m.full_name || m.user_id}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="sr-only" htmlFor="sprint-filter">Sprint</label>
+          <select id="sprint-filter" className="rounded border p-2 text-sm" value={sprintFilter} onChange={(e) => setSprintFilter(e.target.value)}>
+            <option value="">All sprints</option>
+            {sprints.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <div>
+            <label className="sr-only" htmlFor="due-start">Due start</label>
+            <input id="due-start" className="rounded border p-2 text-sm" type="date" value={dueStart} onChange={(e) => setDueStart(e.target.value)} />
+          </div>
+          <div>
+            <label className="sr-only" htmlFor="due-end">Due end</label>
+            <input id="due-end" className="rounded border p-2 text-sm" type="date" value={dueEnd} onChange={(e) => setDueEnd(e.target.value)} />
+          </div>
+          <button className="text-sm px-2 py-1 rounded border" onClick={() => { setQ(''); setStatusFilter(''); setAssigneeFilter(''); setSprintFilter(''); setDueStart(''); setDueEnd(''); }}>Reset</button>
+        </div>
+      </div>
       {/* Presence avatar stack */}
       <div className="flex -space-x-2 mb-3">
         {presence.slice(0, 6).map((m: any) => (
@@ -345,6 +427,23 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                               <div className="flex items-center gap-2">
                                 <input className="w-20 rounded border p-1 text-sm" type="number" min={0} value={Number(form.points ?? 0)} onChange={(e) => setForm((f) => ({ ...f, points: Number(e.target.value) }))} />
                                 <input className="rounded border p-1 text-sm" type="date" value={(form.due_date as any as string) || ''} onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} />
+                                <label className="sr-only" htmlFor={`file-${story.id}`}>Attachment</label>
+                                <input id={`file-${story.id}`} className="hidden" type="file" onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const formData = new FormData();
+                                  formData.append('storyId', story.id);
+                                  formData.append('file', file);
+                                  try {
+                                    const res = await fetch('/api/attachments/upload', { method: 'POST', body: formData });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.error || 'Upload failed');
+                                    toast({ title: 'Uploaded', description: 'Attachment uploaded' });
+                                  } catch {
+                                    toast({ title: 'Error', description: 'Failed to upload attachment' });
+                                  }
+                                }} />
+                                <button className="text-sm px-2 py-1 rounded border" onClick={() => document.getElementById(`file-${story.id}`)?.click()}>Attach</button>
                               </div>
                               <div className="flex items-center gap-2">
                                 <select className="w-full rounded border p-1 text-sm" value={(form.assigned_to as any as string) || ''} onChange={(e) => setForm((f) => ({ ...f, assigned_to: e.target.value || null }))}>
@@ -363,6 +462,12 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                   {STATUSES.map((s) => (
                                     <option key={s.id} value={s.id}>{s.name}</option>
                                   ))}
+                                </select>
+                                <select className="w-full rounded border p-1 text-sm" value={(form as any).priority || ''} onChange={(e) => setForm((f: any) => ({ ...f, priority: e.target.value || null }))}>
+                                  <option value="">Priority</option>
+                                  <option value="low">Low</option>
+                                  <option value="medium">Medium</option>
+                                  <option value="high">High</option>
                                 </select>
                               </div>
                                <div className="flex items-center gap-2 justify-end">
@@ -405,6 +510,11 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
                                       await publish('story.watched', { storyId: story.id, watching: isWatching });
                                     }}
                                   />
+                                   {(story as any).priority && (
+                                     <span className="text-[10px] px-1 py-0.5 rounded border">
+                                       {(story as any).priority}
+                                     </span>
+                                   )}
                                 </div>
                               </div>
                               {story.due_date && (

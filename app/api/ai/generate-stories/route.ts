@@ -33,12 +33,15 @@ export const runtime = 'nodejs';
  */
 export async function POST(req: Request) {
   const supabase = createClient();
-  const { projectId, organisationId, requirements, model, force } = (await req.json()) as {
+  const { projectId, organisationId, requirements, model, force, dueStart, dueEnd, priority } = (await req.json()) as {
     projectId: string;
     organisationId: string;
     requirements: string;
     model?: string;
     force?: boolean;
+    dueStart?: string;
+    dueEnd?: string;
+    priority?: 'low' | 'medium' | 'high';
   };
 
   // Validate input
@@ -99,8 +102,12 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           model: model || 'openai/gpt-4-turbo-preview',
           messages: [
-            { role: 'system', content: 'You are a story generator for agile planning. Generate user stories based on the given requirements.' },
-            { role: 'user', content: requirements }
+            { role: 'system', content: 'You are a story generator for agile planning. Generate user stories based on the given requirements. Where provided, incorporate due date constraints and priority levels.' },
+            { role: 'user', content: [
+              requirements,
+              dueStart && dueEnd ? `\nConstraints: Due between ${dueStart} and ${dueEnd}.` : '',
+              priority ? `\nPriority: ${priority}.` : ''
+            ].filter(Boolean).join('') }
           ],
           stream: true,
           temperature: 0.7,
@@ -138,7 +145,9 @@ export async function POST(req: Request) {
                 title: titleMatch[1].trim(),
                 description: descriptionMatch ? descriptionMatch[1].trim() : '',
                 status: 'backlog',
-                ai_generated: true
+                ai_generated: true,
+                priority: priority || null,
+                due_date: dueEnd || null
               };
               newStories.push(story);
               // Emit story via SSE
@@ -153,7 +162,9 @@ export async function POST(req: Request) {
                 title: story.title,
                 description: story.description,
                 status: 'backlog',
-                ai_generated: true
+                ai_generated: true,
+                priority: priority || null,
+                due_date: dueEnd || null
               });
             }
           } catch (_e) {
@@ -168,6 +179,13 @@ export async function POST(req: Request) {
         name: 'ai.credits.deduct',
         data: { organisationId, tokensUsed: newStories.length }
       });
+      // Notify user that generation is complete (best-effort)
+      try {
+        const { data: me } = await supabase.auth.getUser();
+        if (me?.user) {
+          await supabase.from('notifications').insert({ user_id: me.user.id, type: 'ai.story.complete', data: { projectId, count: newStories.length, message: 'AI story generation finished.' } });
+        }
+      } catch {}
       // Emit completion
       await writer.write(
         encoder.encode(

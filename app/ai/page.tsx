@@ -10,6 +10,9 @@ export default function AIPage() {
   const [requirements, setRequirements] = useState('');
   const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [priority, setPriority] = useState<string>('');
+  const [dueStart, setDueStart] = useState<string>('');
+  const [dueEnd, setDueEnd] = useState<string>('');
   const handleGenerate = async () => {
     setLoading(true);
     setStories([]);
@@ -20,7 +23,10 @@ export default function AIPage() {
         body: JSON.stringify({
           projectId: '',
           organisationId: '',
-          requirements
+          requirements,
+          priority: (priority || undefined) as any,
+          dueStart: dueStart || undefined,
+          dueEnd: dueEnd || undefined
         })
       });
       const reader = res.body?.getReader();
@@ -59,6 +65,16 @@ export default function AIPage() {
         onChange={(e) => setRequirements(e.target.value)}
         placeholder="Describe your product requirements..."
       />
+      <div className="flex flex-wrap gap-2">
+        <select className="border rounded p-2 text-sm" value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <option value="">Priority (optional)</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+        <input className="border rounded p-2 text-sm" type="date" value={dueStart} onChange={(e) => setDueStart(e.target.value)} />
+        <input className="border rounded p-2 text-sm" type="date" value={dueEnd} onChange={(e) => setDueEnd(e.target.value)} />
+      </div>
       <button
         className="bg-blue-500 text-white px-4 py-2 rounded"
         onClick={handleGenerate}

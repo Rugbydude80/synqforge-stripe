@@ -127,6 +127,25 @@ export async function POST(req: Request) {
     }
     // Deduct one AI credit for the retrospective
     await inngest.send({ name: 'ai.credits.deduct', data: { organisationId, tokensUsed: 1 } });
+    // Notify all project members
+    try {
+      const { data: project } = await supabase
+        .from('sprints')
+        .select('project_id, name')
+        .eq('id', sprintId)
+        .maybeSingle();
+      if (project?.project_id) {
+        const { data: members } = await supabase
+          .from('project_members')
+          .select('user_id')
+          .eq('project_id', project.project_id);
+        const message = `Retrospective generated for sprint "${project.name || ''}"`;
+        const rows = (members || []).map((m: any) => ({ user_id: m.user_id, type: 'ai.retrospective.complete', data: { sprintId, message } }));
+        if (rows.length > 0) {
+          await supabase.from('notifications').insert(rows);
+        }
+      }
+    } catch {}
     return NextResponse.json({ summary: parsed.summary, notes: parsed.notes });
   } catch (err: any) {
     // eslint-disable-next-line no-console

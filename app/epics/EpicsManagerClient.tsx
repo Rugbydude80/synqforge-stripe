@@ -25,6 +25,9 @@ export default function EpicsManager({ projectId, organisationId }: { projectId:
   const [epics, setEpics] = useState<Epic[]>([]);
   const [requirements, setRequirements] = useState('');
   const [loading, setLoading] = useState(false);
+  const [priority, setPriority] = useState<string>('');
+  const [dueStart, setDueStart] = useState<string>('');
+  const [dueEnd, setDueEnd] = useState<string>('');
   // Fetch existing epics and tasks from Supabase
   const refreshEpics = async () => {
     const { data: epicsData, error: epicsError } = await supabase
@@ -101,7 +104,7 @@ export default function EpicsManager({ projectId, organisationId }: { projectId:
       const res = await fetch('/api/ai/generate-epics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, organisationId, requirements })
+        body: JSON.stringify({ projectId, organisationId, requirements, priority: (priority || undefined) as any, dueStart: dueStart || undefined, dueEnd: dueEnd || undefined })
       });
       // Read SSE stream and update state incrementally
       const reader = res.body?.getReader();
@@ -156,6 +159,16 @@ export default function EpicsManager({ projectId, organisationId }: { projectId:
           onChange={(e) => setRequirements(e.target.value)}
           placeholder="Describe your product requirements to generate epics..."
         />
+        <div className="flex flex-wrap gap-2">
+          <select className="border rounded p-2 text-sm" value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <option value="">Priority (optional)</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <input className="border rounded p-2 text-sm" type="date" value={dueStart} onChange={(e) => setDueStart(e.target.value)} />
+          <input className="border rounded p-2 text-sm" type="date" value={dueEnd} onChange={(e) => setDueEnd(e.target.value)} />
+        </div>
         <button className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50" onClick={handleGenerate} disabled={loading || !requirements.trim()}>
           {loading ? 'Generating…' : 'Generate Epics'}
         </button>

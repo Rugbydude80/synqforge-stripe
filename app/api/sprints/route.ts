@@ -105,6 +105,16 @@ export async function PUT(request: Request) {
         .from('sprints')
         .update({ story_points_completed: totalPoints, velocity })
         .eq('id', id);
+      // Publish notification to project members? Insert per-user notifications based on project membership
+      const { data: members } = await supabase
+        .from('project_members')
+        .select('user_id')
+        .eq('project_id', data.project_id);
+      const message = `Sprint "${(data as any).name}" completed. ${totalPoints} points done.`;
+      const rows = (members || []).map((m: any) => ({ user_id: m.user_id, type: 'sprint.completed', data: { sprintId: id, message } }));
+      if (rows.length > 0) {
+        await supabase.from('notifications').insert(rows);
+      }
       // Determine organisation id for AI credits
       const { data: project } = await supabase
         .from('projects')
