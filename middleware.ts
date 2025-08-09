@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   if (isProtected) {
     // Allow Demo Mode unauthenticated viewing of analytics/backlog/epics/sprint pages
     // so users can explore without auth.
-    const publicWhenDemo = ['/analytics', '/backlog', '/epics', '/sprint', '/sprints'];
+    const publicWhenDemo = ['/analytics', '/backlog', '/epics', '/sprint', '/sprints', '/retrospectives'];
     const matchesPublicWhenDemo = publicWhenDemo.some((p) => request.nextUrl.pathname.startsWith(p));
     const hasSession = request.cookies.get('sb-access-token') || request.cookies.get('sb:token');
     if (!hasSession && !matchesPublicWhenDemo) {
