@@ -41,10 +41,12 @@ export async function middleware(request: NextRequest) {
 
   const response = await updateSession(request);
   if (isProtected) {
-    // We need to check the user session using a server client hooked to this response
-    // but updateSession already refreshed cookies. We'll rely on an auth cookie presence.
+    // Allow Demo Mode unauthenticated viewing of analytics/backlog/epics/sprint pages
+    // so users can explore without auth.
+    const publicWhenDemo = ['/analytics', '/backlog', '/epics', '/sprint', '/sprints'];
+    const matchesPublicWhenDemo = publicWhenDemo.some((p) => request.nextUrl.pathname.startsWith(p));
     const hasSession = request.cookies.get('sb-access-token') || request.cookies.get('sb:token');
-    if (!hasSession) {
+    if (!hasSession && !matchesPublicWhenDemo) {
       const url = request.nextUrl.clone();
       url.pathname = '/signin';
       return NextResponse.redirect(url);

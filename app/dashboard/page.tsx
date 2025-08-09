@@ -17,7 +17,14 @@ const Legend: any = dynamic(() => import('recharts').then((m) => m.Legend as any
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/signin');
+  if (!user) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="mt-2 text-zinc-500">Please sign in to view your organisation dashboard.</p>
+      </div>
+    );
+  }
 
   const { data: profile } = await supabase
     .from('user_profiles')
