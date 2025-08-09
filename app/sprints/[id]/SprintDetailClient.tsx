@@ -40,7 +40,7 @@ export default function SprintDetailClient({
     if (!retro) return;
     const tags = Array.isArray(retro.tags) ? retro.tags : Object.values(retro.tags || {});
     const next = [...tags, newTag].filter(Boolean);
-    const { error } = await supabase.from('retrospectives').update({ tags: next as unknown as Record<string, unknown> }).eq('id', retroId);
+    const { error } = await (supabase as any).from('retrospectives').update({ tags: next }).eq('id', retroId);
     if (error) {
       toast({ title: 'Error', description: 'Failed to add tag' });
       return;
