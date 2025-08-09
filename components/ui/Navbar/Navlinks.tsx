@@ -69,27 +69,26 @@ export default function Navlinks({ user }: NavlinksProps) {
               Pricing
             </Link>
           )}
+          {/* Core app sections are browseable in Demo Mode without auth */}
+          <Link href="/backlog" className={s.link}>
+            Backlog
+          </Link>
+          <Link href="/epics" className={s.link}>
+            Epics
+          </Link>
+          <Link href="/sprint" className={s.link}>
+            Sprint
+          </Link>
+          <Link href="/analytics" className={s.link}>
+            Analytics
+          </Link>
+          <Link href="/retrospectives" className={s.link}>
+            Retrospectives
+          </Link>
           {user && (
-            <>
-              <Link href="/backlog" className={s.link}>
-                Backlog
-              </Link>
-              <Link href="/epics" className={s.link}>
-                Epics
-              </Link>
-              <Link href="/sprint" className={s.link}>
-                Sprint
-              </Link>
-              <Link href="/analytics" className={s.link}>
-                Analytics
-              </Link>
-              <Link href="/retrospectives" className={s.link}>
-                Retrospectives
-              </Link>
-              <Link href="/account" className={s.link}>
-                Account
-              </Link>
-            </>
+            <Link href="/account" className={s.link}>
+              Account
+            </Link>
           )}
           {isFreelancerMode() && (
             <>
