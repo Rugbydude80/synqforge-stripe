@@ -184,6 +184,10 @@ export async function POST(req: Request) {
         const { data: me } = await supabase.auth.getUser();
         if (me?.user) {
           await supabase.from('notifications').insert({ user_id: me.user.id, type: 'ai.story.complete', data: { projectId, count: newStories.length, message: 'AI story generation finished.' } });
+          try {
+            const { publishToUser } = await import('@/lib/ably-server');
+            await publishToUser(me.user.id, 'notification', { type: 'ai.story.complete', count: newStories.length });
+          } catch {}
         }
       } catch {}
       // Emit completion

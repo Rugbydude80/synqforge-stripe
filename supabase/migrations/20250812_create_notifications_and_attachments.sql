@@ -48,4 +48,37 @@ create policy if not exists "attachments_delete_owner" on public.story_attachmen
 -- Helper index
 create index if not exists idx_story_attachments_story_id on public.story_attachments(story_id);
 
+-- 3) storage bucket for attachments (public)
+insert into storage.buckets (id, name, public)
+  values ('attachments', 'attachments', true)
+  on conflict (id) do nothing;
+
+-- Allow authenticated users to upload and read from attachments bucket
+create policy if not exists "attachments_bucket_read" on storage.objects
+  for select using ( bucket_id = 'attachments' );
+create policy if not exists "attachments_bucket_insert" on storage.objects
+  for insert with check ( bucket_id = 'attachments' );
+
+-- 4) trigger to create notifications for watchers on story updates
+create or replace function public.notify_story_watchers() returns trigger as $$
+declare
+  watcher record;
+  message text;
+begin
+  message := 'Story updated';
+  for watcher in select user_id from public.story_watchers where story_id = new.id loop
+    insert into public.notifications(user_id, type, data)
+      values (watcher.user_id, 'story.updated', jsonb_build_object('storyId', new.id, 'message', message));
+  end loop;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_notify_story_watchers on public.stories;
+create trigger trg_notify_story_watchers
+  after update on public.stories
+  for each row
+  when (new.* is distinct from old.*)
+  execute procedure public.notify_story_watchers();
+
 

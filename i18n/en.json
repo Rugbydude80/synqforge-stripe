@@ -1,0 +1,29 @@
+{
+  "navbar": {
+    "signIn": "Sign In",
+    "signOut": "Sign out",
+    "notifications": "Notifications",
+    "markAllRead": "Mark all read",
+    "noUnread": "No unread notifications."
+  },
+  "kanban": {
+    "searchPlaceholder": "Search stories",
+    "allStatuses": "All statuses",
+    "allAssignees": "All assignees",
+    "allSprints": "All sprints",
+    "reset": "Reset",
+    "edit": "Edit",
+    "watch": "Watch",
+    "unwatch": "Unwatch",
+    "due": "Due"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "workload": "Workload by Status",
+    "upcomingDue": "Upcoming Due (14 days)",
+    "projects": "Projects",
+    "aiUsage": "AI Credits Usage",
+    "avgVelocity": "Average Velocity"
+  }
+}
+

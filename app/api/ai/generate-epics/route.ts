@@ -218,6 +218,10 @@ export async function POST(req: Request) {
         const { data: me } = await supabase.auth.getUser();
         if (me?.user) {
           await supabase.from('notifications').insert({ user_id: me.user.id, type: 'ai.epics.complete', data: { projectId, epics: storedEpics.length, message: 'AI epic generation finished.' } });
+          try {
+            const { publishToUser } = await import('@/lib/ably-server');
+            await publishToUser(me.user.id, 'notification', { type: 'ai.epics.complete', epics: storedEpics.length });
+          } catch {}
         }
       } catch {}
       // Emit completion event
