@@ -2,7 +2,4 @@
 
 ALTER TABLE retrospectives
   ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '{}'::jsonb;
-
--- RLS already allows project members to update retrospectives; no changes needed.
-
-
+-- RLS already allows project members to update retrospectives; no changes needed.;

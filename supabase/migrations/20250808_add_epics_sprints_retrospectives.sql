@@ -10,7 +10,6 @@
 
 -- Ensure UUID extension is available
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- ========================
 -- Table: epics
 -- ========================
@@ -23,10 +22,8 @@ CREATE TABLE IF NOT EXISTS epics (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
-
 -- Enable RLS on epics
 ALTER TABLE epics ENABLE ROW LEVEL SECURITY;
-
 -- Policy: project members can access epics
 CREATE POLICY "Project members can access epics"
   ON epics
@@ -38,7 +35,6 @@ CREATE POLICY "Project members can access epics"
         AND project_members.project_id = epics.project_id
     )
   );
-
 -- ========================
 -- Table: sprints
 -- ========================
@@ -53,10 +49,8 @@ CREATE TABLE IF NOT EXISTS sprints (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
-
 -- Enable RLS on sprints
 ALTER TABLE sprints ENABLE ROW LEVEL SECURITY;
-
 -- Policy: project members can access sprints
 CREATE POLICY "Project members can access sprints"
   ON sprints
@@ -68,7 +62,6 @@ CREATE POLICY "Project members can access sprints"
         AND project_members.project_id = sprints.project_id
     )
   );
-
 -- ========================
 -- Table: retrospectives
 -- ========================
@@ -79,10 +72,8 @@ CREATE TABLE IF NOT EXISTS retrospectives (
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
-
 -- Enable RLS on retrospectives
 ALTER TABLE retrospectives ENABLE ROW LEVEL SECURITY;
-
 -- Policy: project members can access retrospectives via sprints
 CREATE POLICY "Project members can access retrospectives"
   ON retrospectives
@@ -96,14 +87,12 @@ CREATE POLICY "Project members can access retrospectives"
         AND project_members.user_id = auth.uid()
     )
   );
-
 -- ========================
 -- Extend stories table
 -- ========================
 ALTER TABLE stories
   ADD COLUMN IF NOT EXISTS epic_id UUID REFERENCES epics(id),
   ADD COLUMN IF NOT EXISTS sprint_id UUID REFERENCES sprints(id);
-
 -- RLS policy update: ensure project members can update stories
 -- This complements the existing access policy for stories.
 DO $$ BEGIN

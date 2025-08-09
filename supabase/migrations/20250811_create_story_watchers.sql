@@ -1,16 +1,13 @@
 -- Migration: Create story_watchers table with RLS
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE IF NOT EXISTS story_watchers (
   story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   PRIMARY KEY (story_id, user_id)
 );
-
 ALTER TABLE story_watchers ENABLE ROW LEVEL SECURITY;
-
 -- Only the watcher (auth.uid) can select their own watch rows
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -21,7 +18,6 @@ DO $$ BEGIN
       USING (user_id = auth.uid());
   END IF;
 END $$;
-
 -- Project members can insert a watch row for stories in projects they belong to (and only for themselves)
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -41,7 +37,6 @@ DO $$ BEGIN
       );
   END IF;
 END $$;
-
 -- Project members can delete their own watch rows for stories in projects they belong to
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -61,5 +56,3 @@ DO $$ BEGIN
       );
   END IF;
 END $$;
-
-

@@ -14,14 +14,20 @@ create table if not exists public.notifications (
 alter table public.notifications enable row level security;
 
 -- Only owner can read or update their notifications; inserts can be done by authenticated users (server-side contexts should use service key)
-create policy if not exists "notifications_select_owner" on public.notifications
-  for select using ( auth.uid() = user_id );
+drop policy if exists "notifications_select_owner" on public.notifications;
+create policy "notifications_select_owner" on public.notifications
+  for select
+  using ( auth.uid() = user_id );
 
-create policy if not exists "notifications_update_owner" on public.notifications
-  for update using ( auth.uid() = user_id );
+drop policy if exists "notifications_update_owner" on public.notifications;
+create policy "notifications_update_owner" on public.notifications
+  for update
+  using ( auth.uid() = user_id );
 
-create policy if not exists "notifications_insert_self_or_service" on public.notifications
-  for insert with check ( auth.uid() = user_id );
+drop policy if exists "notifications_insert_self_or_service" on public.notifications;
+create policy "notifications_insert_self_or_service" on public.notifications
+  for insert
+  with check ( auth.uid() = user_id );
 
 -- 2) story_attachments
 create table if not exists public.story_attachments (
@@ -36,14 +42,20 @@ create table if not exists public.story_attachments (
 alter table public.story_attachments enable row level security;
 
 -- Owners can read their uploaded attachments; additionally allow readers who can read the story via membership
-create policy if not exists "attachments_select_owner" on public.story_attachments
-  for select using ( auth.uid() = user_id );
+drop policy if exists "attachments_select_owner" on public.story_attachments;
+create policy "attachments_select_owner" on public.story_attachments
+  for select
+  using ( auth.uid() = user_id );
 
-create policy if not exists "attachments_insert_owner" on public.story_attachments
-  for insert with check ( auth.uid() = user_id );
+drop policy if exists "attachments_insert_owner" on public.story_attachments;
+create policy "attachments_insert_owner" on public.story_attachments
+  for insert
+  with check ( auth.uid() = user_id );
 
-create policy if not exists "attachments_delete_owner" on public.story_attachments
-  for delete using ( auth.uid() = user_id );
+drop policy if exists "attachments_delete_owner" on public.story_attachments;
+create policy "attachments_delete_owner" on public.story_attachments
+  for delete
+  using ( auth.uid() = user_id );
 
 -- Helper index
 create index if not exists idx_story_attachments_story_id on public.story_attachments(story_id);
@@ -54,10 +66,14 @@ insert into storage.buckets (id, name, public)
   on conflict (id) do nothing;
 
 -- Allow authenticated users to upload and read from attachments bucket
-create policy if not exists "attachments_bucket_read" on storage.objects
-  for select using ( bucket_id = 'attachments' );
-create policy if not exists "attachments_bucket_insert" on storage.objects
-  for insert with check ( bucket_id = 'attachments' );
+drop policy if exists "attachments_bucket_read" on storage.objects;
+create policy "attachments_bucket_read" on storage.objects
+  for select
+  using ( bucket_id = 'attachments' );
+drop policy if exists "attachments_bucket_insert" on storage.objects;
+create policy "attachments_bucket_insert" on storage.objects
+  for insert
+  with check ( bucket_id = 'attachments' );
 
 -- 4) trigger to create notifications for watchers on story updates
 create or replace function public.notify_story_watchers() returns trigger as $$
@@ -79,6 +95,6 @@ create trigger trg_notify_story_watchers
   after update on public.stories
   for each row
   when (new.* is distinct from old.*)
-  execute procedure public.notify_story_watchers();
+  execute function public.notify_story_watchers();
 
 

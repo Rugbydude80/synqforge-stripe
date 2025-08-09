@@ -2,11 +2,9 @@
 -- Re-issued with a new version to avoid duplicate schema_migrations key.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 ALTER TABLE stories
   ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS due_date DATE NULL;
-
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'stories' AND policyname = 'Project members can update stories (points/due_date)'
@@ -30,5 +28,3 @@ DO $$ BEGIN
       );
   END IF;
 END $$;
-
-

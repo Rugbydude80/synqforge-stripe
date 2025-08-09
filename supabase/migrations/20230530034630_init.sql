@@ -15,7 +15,6 @@ create table users (
 alter table users enable row level security;
 create policy "Can view own user data." on users for select using (auth.uid() = id);
 create policy "Can update own user data." on users for update using (auth.uid() = id);
-
 /**
 * This trigger automatically creates a user entry when a new user signs up via Supabase Auth.
 */ 
@@ -30,7 +29,6 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
-
 /**
 * CUSTOMERS
 * Note: this is a private table that contains a mapping of user IDs to Stripe customer IDs.
@@ -64,7 +62,6 @@ create table products (
 );
 alter table products enable row level security;
 create policy "Allow public read-only access." on products for select using (true);
-
 /**
 * PRICES
 * Note: prices are created and managed in Stripe and synced to our DB via Stripe webhooks.
@@ -97,7 +94,6 @@ create table prices (
 );
 alter table prices enable row level security;
 create policy "Allow public read-only access." on prices for select using (true);
-
 /**
 * SUBSCRIPTIONS
 * Note: subscriptions are created and managed in Stripe and synced to our DB via Stripe webhooks.
@@ -136,7 +132,6 @@ create table subscriptions (
 );
 alter table subscriptions enable row level security;
 create policy "Can only view own subs data." on subscriptions for select using (auth.uid() = user_id);
-
 /**
  * REALTIME SUBSCRIPTIONS
  * Only allow realtime listening on public tables.

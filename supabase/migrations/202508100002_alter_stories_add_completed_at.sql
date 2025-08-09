@@ -2,12 +2,10 @@
 -- Date: 2025-08-10
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Add columns if they do not already exist
 ALTER TABLE stories
   ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE NULL,
   ADD COLUMN IF NOT EXISTS assigned_to UUID NULL REFERENCES auth.users(id);
-
 -- RLS: Ensure project members can update stories (including new columns)
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -32,5 +30,3 @@ DO $$ BEGIN
       );
   END IF;
 END $$;
-
-
