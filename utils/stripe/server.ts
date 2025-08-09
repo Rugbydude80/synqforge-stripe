@@ -1,7 +1,7 @@
 'use server';
 
-import Stripe from 'stripe';
-import { stripe } from '@/utils/stripe/config';
+import type Stripe from 'stripe';
+import { isBillingEnabled } from '@/lib/env';
 import { createClient } from '@/utils/supabase/server';
 import { createOrRetrieveCustomer } from '@/utils/supabase/admin';
 import {
@@ -22,6 +22,15 @@ export async function checkoutWithStripe(
   price: Price,
   redirectPath: string = '/account'
 ): Promise<CheckoutResponse> {
+  if (!isBillingEnabled()) {
+    return {
+      errorRedirect: getErrorRedirect(
+        redirectPath,
+        'Billing is disabled in this environment.',
+        'Please contact support if you believe this is an error.'
+      )
+    };
+  }
   try {
     // Get the user from Supabase auth
     const supabase = createClient();
@@ -86,6 +95,8 @@ export async function checkoutWithStripe(
     // Create a checkout session in Stripe
     let session;
     try {
+      const { getServerStripe } = await import('@/utils/stripe/config');
+      const stripe = getServerStripe();
       session = await stripe.checkout.sessions.create(params);
     } catch (err) {
       console.error(err);
@@ -120,6 +131,13 @@ export async function checkoutWithStripe(
 }
 
 export async function createStripePortal(currentPath: string) {
+  if (!isBillingEnabled()) {
+    return getErrorRedirect(
+      currentPath,
+      'Billing is disabled in this environment.',
+      'Please contact support if you believe this is an error.'
+    );
+  }
   try {
     const supabase = createClient();
     const {
@@ -150,6 +168,8 @@ export async function createStripePortal(currentPath: string) {
     }
 
     try {
+      const { getServerStripe } = await import('@/utils/stripe/config');
+      const stripe = getServerStripe();
       const { url } = await stripe.billingPortal.sessions.create({
         customer,
         return_url: getURL('/account')

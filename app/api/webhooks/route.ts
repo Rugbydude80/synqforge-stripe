@@ -1,5 +1,5 @@
-import Stripe from 'stripe';
-import { stripe } from '@/utils/stripe/config';
+import { isBillingEnabled } from '@/lib/env';
+// Note: Stripe is lazily imported inside handlers when billing is enabled.
 import {
   upsertProductRecord,
   upsertPriceRecord,
@@ -22,10 +22,14 @@ const relevantEvents = new Set([
 ]);
 
 export async function POST(req: Request) {
+  if (!isBillingEnabled()) return new Response(null, { status: 204 });
+  const { default: Stripe } = await import('stripe');
+  const { getServerStripe } = await import('@/utils/stripe/config');
+  const stripe = getServerStripe();
   const body = await req.text();
   const sig = req.headers.get('stripe-signature') as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  let event: Stripe.Event;
+  let event: import('stripe').Stripe.Event;
 
   try {
     if (!sig || !webhookSecret)
@@ -42,22 +46,22 @@ export async function POST(req: Request) {
       switch (event.type) {
         case 'product.created':
         case 'product.updated':
-          await upsertProductRecord(event.data.object as Stripe.Product);
+          await upsertProductRecord(event.data.object as import('stripe').Stripe.Product);
           break;
         case 'price.created':
         case 'price.updated':
-          await upsertPriceRecord(event.data.object as Stripe.Price);
+          await upsertPriceRecord(event.data.object as import('stripe').Stripe.Price);
           break;
         case 'price.deleted':
-          await deletePriceRecord(event.data.object as Stripe.Price);
+          await deletePriceRecord(event.data.object as import('stripe').Stripe.Price);
           break;
         case 'product.deleted':
-          await deleteProductRecord(event.data.object as Stripe.Product);
+          await deleteProductRecord(event.data.object as import('stripe').Stripe.Product);
           break;
         case 'customer.subscription.created':
         case 'customer.subscription.updated':
         case 'customer.subscription.deleted':
-          const subscription = event.data.object as Stripe.Subscription;
+          const subscription = event.data.object as import('stripe').Stripe.Subscription;
           await manageSubscriptionStatusChange(
             subscription.id,
             subscription.customer as string,
@@ -65,7 +69,7 @@ export async function POST(req: Request) {
           );
           break;
         case 'checkout.session.completed':
-          const checkoutSession = event.data.object as Stripe.Checkout.Session;
+          const checkoutSession = event.data.object as import('stripe').Stripe.Checkout.Session;
           if (checkoutSession.mode === 'subscription') {
             const subscriptionId = checkoutSession.subscription;
             await manageSubscriptionStatusChange(

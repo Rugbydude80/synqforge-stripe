@@ -139,13 +139,15 @@ export async function POST(req: Request) {
                   `data: ${JSON.stringify({ type: 'story', story })}\n\n`
                 )
               );
+              const numericPriority: number | null =
+                priority === 'high' ? 3 : priority === 'medium' ? 2 : priority === 'low' ? 1 : null;
               await supabase.from('stories').insert({
                 project_id: projectId,
                 title: story.title,
                 description: story.description,
                 status: 'backlog',
                 ai_generated: true,
-                priority: priority || null,
+                priority: numericPriority,
                 due_date: dueEnd || null,
                 points: 0
               });

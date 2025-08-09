@@ -1,3 +1,3 @@
-export { stripe } from '@/utils/stripe/config';
+export { getServerStripe } from '@/utils/stripe/config';
 
 

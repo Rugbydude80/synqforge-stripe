@@ -24,6 +24,150 @@ import type { Database as BaseDatabase } from '../types_db';
 export type Database = Omit<BaseDatabase, 'public'> & {
   public: {
     Tables: BaseDatabase['public']['Tables'] & {
+      /** Solo clients for Freelancer Mode. */
+      clients: {
+        Row: {
+          id: string;
+          name: string;
+          logo_url: string | null;
+          created_by: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          logo_url?: string | null;
+          created_by?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          logo_url?: string | null;
+          created_by?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'clients_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      /** Raw ingests (uploads/paste) normalised to text for extraction. */
+      ingests: {
+        Row: {
+          id: string;
+          client_id: string | null;
+          source_type: 'upload' | 'paste' | 'meeting';
+          filename: string | null;
+          mime_type: string | null;
+          raw_text: string | null;
+          meta: Record<string, unknown>;
+          created_by: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          client_id?: string | null;
+          source_type: 'upload' | 'paste' | 'meeting';
+          filename?: string | null;
+          mime_type?: string | null;
+          raw_text?: string | null;
+          meta?: Record<string, unknown>;
+          created_by?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          client_id?: string | null;
+          source_type?: 'upload' | 'paste' | 'meeting';
+          filename?: string | null;
+          mime_type?: string | null;
+          raw_text?: string | null;
+          meta?: Record<string, unknown>;
+          created_by?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ingests_client_id_fkey';
+            columns: ['client_id'];
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ingests_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      /** AI-extracted story candidates prior to acceptance. */
+      story_candidates: {
+        Row: {
+          id: string;
+          client_id: string | null;
+          ingest_id: string | null;
+          title: string;
+          description: string | null;
+          acceptance_criteria: unknown[]; // jsonb array
+          points: number;
+          priority: 'low' | 'medium' | 'high';
+          status: 'proposed' | 'accepted' | 'discarded';
+          created_by: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          client_id?: string | null;
+          ingest_id?: string | null;
+          title: string;
+          description?: string | null;
+          acceptance_criteria?: unknown[];
+          points?: number;
+          priority?: 'low' | 'medium' | 'high';
+          status?: 'proposed' | 'accepted' | 'discarded';
+          created_by?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          client_id?: string | null;
+          ingest_id?: string | null;
+          title?: string;
+          description?: string | null;
+          acceptance_criteria?: unknown[];
+          points?: number;
+          priority?: 'low' | 'medium' | 'high';
+          status?: 'proposed' | 'accepted' | 'discarded';
+          created_by?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'story_candidates_client_id_fkey';
+            columns: ['client_id'];
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'story_candidates_ingest_id_fkey';
+            columns: ['ingest_id'];
+            referencedRelation: 'ingests';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'story_candidates_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       /** Organisations represent top‑level tenants. */
       organisations: {
         Row: {
@@ -187,7 +331,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           assigned_to: string | null;
           points: number | null;
           due_date: string | null; // YYYY-MM-DD
-           completed_at: string | null;
+          completed_at: string | null;
           priority: number | null;
           ai_generated: boolean | null;
           created_at: string | null;
@@ -196,6 +340,8 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           epic_id: string | null;
           /** Optional reference to the sprint this story is scheduled for. */
           sprint_id: string | null;
+          /** Optional provenance to source ingest. */
+          ingest_id: string | null;
         };
         Insert: {
           id?: string;
@@ -213,6 +359,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           updated_at?: string | null;
           epic_id?: string | null;
           sprint_id?: string | null;
+          ingest_id?: string | null;
         };
         Update: {
           id?: string;
@@ -230,6 +377,7 @@ export type Database = Omit<BaseDatabase, 'public'> & {
           updated_at?: string | null;
           epic_id?: string | null;
           sprint_id?: string | null;
+          ingest_id?: string | null;
         };
         Relationships: [
           {
@@ -254,6 +402,12 @@ export type Database = Omit<BaseDatabase, 'public'> & {
             foreignKeyName: 'stories_sprint_id_fkey';
             columns: ['sprint_id'];
             referencedRelation: 'sprints';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stories_ingest_id_fkey';
+            columns: ['ingest_id'];
+            referencedRelation: 'ingests';
             referencedColumns: ['id'];
           },
         ];

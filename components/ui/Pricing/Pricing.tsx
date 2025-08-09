@@ -10,6 +10,7 @@ import { User } from '@supabase/supabase-js';
 import cn from 'classnames';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { billingOn } from '@/lib/env';
 
 type Subscription = Tables<'subscriptions'>;
 type Product = Tables<'products'>;
@@ -33,6 +34,17 @@ interface Props {
 type BillingInterval = 'lifetime' | 'year' | 'month';
 
 export default function Pricing({ user, products, subscription }: Props) {
+  if (!billingOn) {
+    return (
+      <section className="bg-black">
+        <div className="max-w-6xl px-4 py-8 mx-auto sm:py-24 sm:px-6 lg:px-8">
+          <h1 className="text-4xl font-extrabold text-white sm:text-center sm:text-6xl">Billing is disabled</h1>
+          <p className="mt-4 text-zinc-300 sm:text-center">Billing is disabled in this environment. You can continue to use Freelancer Mode features.</p>
+          <LogoCloud />
+        </div>
+      </section>
+    );
+  }
   const intervals = Array.from(
     new Set(
       products.flatMap((product) =>

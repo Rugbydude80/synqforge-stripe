@@ -1,7 +1,7 @@
 import { inngest } from '@/lib/inngest';
-import { stripe } from '@/utils/stripe/config';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/extended-db';
+import { isBillingEnabled } from '@/lib/env';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -21,6 +21,7 @@ export const userSignupCompleted = inngest.createFunction(
 
     // 1) Ensure Stripe customer exists and is mapped
     const stripeCustomerId = await step.run('ensure-stripe-customer', async () => {
+      if (!isBillingEnabled()) return undefined as unknown as string;
       // Try existing mapping
       const { data: existing } = await supabase
         .from('customers')
@@ -32,10 +33,14 @@ export const userSignupCompleted = inngest.createFunction(
       // Try find by email, else create
       let customerId: string | undefined;
       if (email) {
+        const { getServerStripe } = await import('@/utils/stripe/config');
+        const stripe = getServerStripe();
         const list = await stripe.customers.list({ email });
         customerId = list.data[0]?.id;
       }
       if (!customerId) {
+        const { getServerStripe } = await import('@/utils/stripe/config');
+        const stripe = getServerStripe();
         const created = await stripe.customers.create({
           email: email,
           metadata: { supabaseUUID: userId }

@@ -7,6 +7,7 @@ import { createStripePortal } from '@/utils/stripe/server';
 import Link from 'next/link';
 import Card from '@/components/ui/Card';
 import { Tables } from '@/types_db';
+import { billingOn } from '@/lib/env';
 
 type Subscription = Tables<'subscriptions'>;
 type Price = Tables<'prices'>;
@@ -38,6 +39,7 @@ export default function CustomerPortalForm({ subscription }: Props) {
     }).format((subscription?.prices?.unit_amount || 0) / 100);
 
   const handleStripePortalRequest = async () => {
+    if (!billingOn) return;
     setIsSubmitting(true);
     const redirectUrl = await createStripePortal(currentPath);
     setIsSubmitting(false);
@@ -54,11 +56,13 @@ export default function CustomerPortalForm({ subscription }: Props) {
       }
       footer={
         <div className="flex flex-col items-start justify-between sm:flex-row sm:items-center">
-          <p className="pb-4 sm:pb-0">Manage your subscription on Stripe.</p>
+          <p className="pb-4 sm:pb-0">{billingOn ? 'Manage your subscription on Stripe.' : 'Billing is disabled in this environment.'}</p>
           <Button
             variant="slim"
             onClick={handleStripePortalRequest}
             loading={isSubmitting}
+            disabled={!billingOn}
+            title={!billingOn ? 'Billing disabled in this environment.' : undefined}
           >
             Open customer portal
           </Button>

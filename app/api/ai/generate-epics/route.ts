@@ -180,6 +180,8 @@ export async function POST(req: Request) {
         );
         const tasksList: any[] = [];
         for (const task of epic.tasks || []) {
+          const numericPriority: number | null =
+            priority === 'high' ? 3 : priority === 'medium' ? 2 : priority === 'low' ? 1 : null;
           const { data: storyInsert, error: storyError } = await supabase
             .from('stories')
             .insert({
@@ -189,7 +191,7 @@ export async function POST(req: Request) {
               status: 'backlog',
               epic_id: epicId,
               ai_generated: true,
-              priority: priority || null,
+              priority: numericPriority,
               due_date: dueEnd || null
             })
             .select()

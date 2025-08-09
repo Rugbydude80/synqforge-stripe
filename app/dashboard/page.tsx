@@ -1,17 +1,18 @@
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import React from 'react';
 
-const ResponsiveContainer = dynamic(() => import('recharts').then((m) => m.ResponsiveContainer as any), { ssr: false });
-const PieChart = dynamic(() => import('recharts').then((m) => m.PieChart as any), { ssr: false });
-const Pie = dynamic(() => import('recharts').then((m) => m.Pie as any), { ssr: false });
-const Cell = dynamic(() => import('recharts').then((m) => m.Cell as any), { ssr: false });
-const BarChart = dynamic(() => import('recharts').then((m) => m.BarChart as any), { ssr: false });
-const Bar = dynamic(() => import('recharts').then((m) => m.Bar as any), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then((m) => m.XAxis as any), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then((m) => m.YAxis as any), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then((m) => m.Tooltip as any), { ssr: false });
-const Legend = dynamic(() => import('recharts').then((m) => m.Legend as any), { ssr: false });
+const ResponsiveContainer: any = dynamic(() => import('recharts').then((m) => m.ResponsiveContainer as any), { ssr: false, loading: () => null });
+const PieChart: any = dynamic(() => import('recharts').then((m) => m.PieChart as any), { ssr: false, loading: () => null });
+const Pie: any = dynamic(() => import('recharts').then((m) => m.Pie as any), { ssr: false, loading: () => null });
+const Cell: any = dynamic(() => import('recharts').then((m) => m.Cell as any), { ssr: false, loading: () => null });
+const BarChart: any = dynamic(() => import('recharts').then((m) => m.BarChart as any), { ssr: false, loading: () => null });
+const Bar: any = dynamic(() => import('recharts').then((m) => m.Bar as any), { ssr: false, loading: () => null });
+const XAxis: any = dynamic(() => import('recharts').then((m) => m.XAxis as any), { ssr: false, loading: () => null });
+const YAxis: any = dynamic(() => import('recharts').then((m) => m.YAxis as any), { ssr: false, loading: () => null });
+const Tooltip: any = dynamic(() => import('recharts').then((m) => m.Tooltip as any), { ssr: false, loading: () => null });
+const Legend: any = dynamic(() => import('recharts').then((m) => m.Legend as any), { ssr: false, loading: () => null });
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient();
@@ -91,7 +92,7 @@ export default async function DashboardPage() {
         <div className="p-4 border rounded bg-white dark:bg-zinc-800">
           <h2 className="font-semibold mb-2">Workload by Status</h2>
           <div className="h-72">
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData as any}>
                 <XAxis dataKey="name" />
                 <YAxis allowDecimals={false} />
@@ -108,7 +109,7 @@ export default async function DashboardPage() {
         <div className="p-4 border rounded bg-white dark:bg-zinc-800">
           <h2 className="font-semibold mb-2">Upcoming Due (14 days)</h2>
           <div className="h-72">
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={pieData as any} dataKey="value" nameKey="name" outerRadius={100} label>
                   {(pieData as any).map((_entry: any, index: number) => (

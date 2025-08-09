@@ -16,9 +16,12 @@ function run(cmd: string, args: string[]): Promise<number> {
 }
 
 async function main() {
-  const MIGRATION = '20240501_create_core_schema.sql';
+  // Use only the numeric version for repair (e.g. 20240501)
+  const MIGRATION_FILE = '20240501_create_core_schema.sql';
+  const versionMatch = MIGRATION_FILE.match(/^(\d{8,14})/);
+  const version = versionMatch ? versionMatch[1] : '20240501';
   // Mark core schema migration as applied if not already
-  const code1 = await run('npx', ['-y', 'supabase', 'migration', 'repair', '--status', 'applied', '--migrations', MIGRATION]);
+  const code1 = await run('npx', ['-y', 'supabase', 'migration', 'repair', version, '--status', 'applied']);
   if (code1 !== 0) {
     console.error('Failed to repair migration status.');
     process.exit(code1);

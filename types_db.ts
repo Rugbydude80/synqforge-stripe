@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      clients: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           id: string
@@ -61,6 +85,77 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ingests: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          filename: string | null
+          id: string
+          meta: Json
+          mime_type: string | null
+          raw_text: string | null
+          source_type: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          filename?: string | null
+          id?: string
+          meta?: Json
+          mime_type?: string | null
+          raw_text?: string | null
+          source_type: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          filename?: string | null
+          id?: string
+          meta?: Json
+          mime_type?: string | null
+          raw_text?: string | null
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          read: boolean
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          read?: boolean
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          read?: boolean
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       organisations: {
         Row: {
@@ -273,6 +368,7 @@ export type Database = {
       }
       sprints: {
         Row: {
+          capacity_points: number
           created_at: string | null
           end_date: string
           goal: string | null
@@ -286,6 +382,7 @@ export type Database = {
           velocity: number
         }
         Insert: {
+          capacity_points?: number
           created_at?: string | null
           end_date: string
           goal?: string | null
@@ -299,6 +396,7 @@ export type Database = {
           velocity?: number
         }
         Update: {
+          capacity_points?: number
           created_at?: string | null
           end_date?: string
           goal?: string | null
@@ -325,10 +423,13 @@ export type Database = {
         Row: {
           ai_generated: boolean | null
           assigned_to: string | null
+          completed_at: string | null
           created_at: string | null
           description: string | null
+          due_date: string | null
           epic_id: string | null
           id: string
+          points: number
           project_id: string | null
           sprint_id: string | null
           status: string | null
@@ -338,10 +439,13 @@ export type Database = {
         Insert: {
           ai_generated?: boolean | null
           assigned_to?: string | null
+          completed_at?: string | null
           created_at?: string | null
           description?: string | null
+          due_date?: string | null
           epic_id?: string | null
           id?: string
+          points?: number
           project_id?: string | null
           sprint_id?: string | null
           status?: string | null
@@ -351,10 +455,13 @@ export type Database = {
         Update: {
           ai_generated?: boolean | null
           assigned_to?: string | null
+          completed_at?: string | null
           created_at?: string | null
           description?: string | null
+          due_date?: string | null
           epic_id?: string | null
           id?: string
+          points?: number
           project_id?: string | null
           sprint_id?: string | null
           status?: string | null
@@ -381,6 +488,124 @@ export type Database = {
             columns: ["sprint_id"]
             isOneToOne: false
             referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_url: string
+          id: string
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_url: string
+          id?: string
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          id?: string
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_attachments_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_candidates: {
+        Row: {
+          acceptance_criteria: Json
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          ingest_id: string | null
+          points: number
+          priority: string
+          status: string
+          title: string
+        }
+        Insert: {
+          acceptance_criteria?: Json
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          ingest_id?: string | null
+          points?: number
+          priority?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          acceptance_criteria?: Json
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          ingest_id?: string | null
+          points?: number
+          priority?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_candidates_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_candidates_ingest_id_fkey"
+            columns: ["ingest_id"]
+            isOneToOne: false
+            referencedRelation: "ingests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_watchers: {
+        Row: {
+          created_at: string | null
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_watchers_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
             referencedColumns: ["id"]
           },
         ]

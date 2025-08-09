@@ -33,6 +33,37 @@ export type Story = {
   aiGenerated?: boolean;
 };
 
+export type Client = {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  createdAt: string;
+};
+
+export type Ingest = {
+  id: string;
+  clientId?: string | null;
+  sourceType: 'upload' | 'paste' | 'meeting';
+  filename?: string | null;
+  mimeType?: string | null;
+  rawText?: string | null;
+  meta?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type StoryCandidate = {
+  id: string;
+  clientId?: string | null;
+  ingestId?: string | null;
+  title: string;
+  description?: string | null;
+  acceptanceCriteria: string[];
+  points: number;
+  priority: 'low' | 'medium' | 'high';
+  status: 'proposed' | 'accepted' | 'discarded';
+  createdAt: string;
+};
+
 // Epics represent high-level features grouping multiple stories/tasks.
 export type Epic = {
   id: string;

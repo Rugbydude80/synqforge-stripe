@@ -10,6 +10,7 @@ import s from './Navbar.module.css';
 import { Bell } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createClient as createSupabaseBrowserClient } from '@/utils/supabase/client';
+import { isFreelancerMode, billingOn } from '@/lib/env';
 
 interface NavlinksProps {
   user?: any;
@@ -63,9 +64,11 @@ export default function Navlinks({ user }: NavlinksProps) {
           <Logo />
         </Link>
         <nav className="ml-6 space-x-2 lg:block">
-          <Link href="/" className={s.link}>
-            Pricing
-          </Link>
+          {billingOn && (
+            <Link href="/" className={s.link}>
+              Pricing
+            </Link>
+          )}
           {user && (
             <>
               <Link href="/backlog" className={s.link}>
@@ -86,6 +89,31 @@ export default function Navlinks({ user }: NavlinksProps) {
               <Link href="/account" className={s.link}>
                 Account
               </Link>
+              {isFreelancerMode() && (
+                <span className="inline-flex items-center gap-1 ml-2 text-zinc-500">|</span>
+              )}
+              {isFreelancerMode() && (
+                <>
+                  <Link href="/solo/ingest" className={s.link}>
+                    Freelancer: Ingest
+                  </Link>
+                  <Link href="/solo/generate" className={s.link}>
+                    Generate
+                  </Link>
+                  <Link href="/solo/backlog" className={s.link}>
+                    Solo Backlog
+                  </Link>
+                  <Link href="/solo/sprints" className={s.link}>
+                    Sprints
+                  </Link>
+                  <Link href="/solo/planning" className={s.link}>
+                    Planning
+                  </Link>
+                  <Link href="/solo/analytics" className={s.link}>
+                    Analytics
+                  </Link>
+                </>
+              )}
             </>
           )}
         </nav>
