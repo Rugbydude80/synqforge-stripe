@@ -50,50 +50,114 @@ alter table public.clients enable row level security;
 alter table public.ingests enable row level security;
 alter table public.story_candidates enable row level security;
 
--- Policies (owner = created_by)
-create policy "clients_owner_select"
-on public.clients for select
-using (created_by = auth.uid());
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'clients' AND policyname = 'clients_owner_select'
+  ) THEN
+    CREATE POLICY "clients_owner_select"
+      ON public.clients FOR SELECT
+      USING (created_by = auth.uid());
+  END IF;
+END $$;
 
-create policy "clients_owner_cud"
-on public.clients for all
-to authenticated
-using (created_by = auth.uid())
-with check (created_by = auth.uid());
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'clients' AND policyname = 'clients_owner_cud'
+  ) THEN
+    CREATE POLICY "clients_owner_cud"
+      ON public.clients FOR ALL TO authenticated
+      USING (created_by = auth.uid())
+      WITH CHECK (created_by = auth.uid());
+  END IF;
+END $$;
 
-create policy "ingests_owner_select"
-on public.ingests for select
-using (
-  created_by = auth.uid()
-  or exists (select 1 from public.clients c where c.id = client_id and c.created_by = auth.uid())
-);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'ingests' AND policyname = 'ingests_owner_select'
+  ) THEN
+    CREATE POLICY "ingests_owner_select"
+      ON public.ingests FOR SELECT
+      USING (
+        created_by = auth.uid()
+        OR EXISTS (
+          SELECT 1 FROM public.clients c WHERE c.id = client_id AND c.created_by = auth.uid()
+        )
+      );
+  END IF;
+END $$;
 
-create policy "ingests_owner_cud"
-on public.ingests for all
-to authenticated
-using (created_by = auth.uid())
-with check (created_by = auth.uid());
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'ingests' AND policyname = 'ingests_owner_cud'
+  ) THEN
+    CREATE POLICY "ingests_owner_cud"
+      ON public.ingests FOR ALL TO authenticated
+      USING (created_by = auth.uid())
+      WITH CHECK (created_by = auth.uid());
+  END IF;
+END $$;
 
-create policy "candidates_owner_select"
-on public.story_candidates for select
-using (
-  created_by = auth.uid()
-  or exists (select 1 from public.clients c where c.id = client_id and c.created_by = auth.uid())
-);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'story_candidates' AND policyname = 'candidates_owner_select'
+  ) THEN
+    CREATE POLICY "candidates_owner_select"
+      ON public.story_candidates FOR SELECT
+      USING (
+        created_by = auth.uid()
+        OR EXISTS (
+          SELECT 1 FROM public.clients c WHERE c.id = client_id AND c.created_by = auth.uid()
+        )
+      );
+  END IF;
+END $$;
 
-create policy "candidates_owner_cud"
-on public.story_candidates for all
-to authenticated
-using (created_by = auth.uid())
-with check (created_by = auth.uid());
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'story_candidates' AND policyname = 'candidates_owner_cud'
+  ) THEN
+    CREATE POLICY "candidates_owner_cud"
+      ON public.story_candidates FOR ALL TO authenticated
+      USING (created_by = auth.uid())
+      WITH CHECK (created_by = auth.uid());
+  END IF;
+END $$;
 
 -- Storage policies for private bucket 'ingest'
-create policy "ingest_read_own"
-on storage.objects for select to authenticated
-using (bucket_id = 'ingest' and (owner = auth.uid() or (storage.foldername(name))[1] = auth.uid()::text));
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'ingest_read_own'
+  ) THEN
+    CREATE POLICY "ingest_read_own"
+      ON storage.objects FOR SELECT TO authenticated
+      USING (
+        bucket_id = 'ingest' AND (
+          owner = auth.uid() OR (storage.foldername(name))[1] = auth.uid()::text
+        )
+      );
+  END IF;
+END $$;
 
-create policy "ingest_write_own"
-on storage.objects for insert to authenticated
-with check (bucket_id = 'ingest' and (owner = auth.uid() or (storage.foldername(name))[1] = auth.uid()::text));
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'ingest_write_own'
+  ) THEN
+    CREATE POLICY "ingest_write_own"
+      ON storage.objects FOR INSERT TO authenticated
+      WITH CHECK (
+        bucket_id = 'ingest' AND (
+          owner = auth.uid() OR (storage.foldername(name))[1] = auth.uid()::text
+        )
+      );
+  END IF;
+END $$;
 
 

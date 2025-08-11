@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { runJson } from '@/lib/ai/run';
+import { hasAI } from '@/lib/env';
 import { pickModel } from '@/lib/ai/router';
 import type { Database } from '@/types/extended-db';
 
@@ -55,8 +56,16 @@ Only return valid JSON, no prose.
 
 NOTES:\n\n${raw.slice(0, 50000)}`;
 
-  const model = pickModel({ strictSchema: enforceSchema });
-  const stories = await runJson<any[]>({ model, prompt, schema });
+  let stories: any[];
+  if (!hasAI()) {
+    // Deterministic fixture when AI is disabled
+    stories = [
+      { title: 'User can sign in', as_a: 'user', i_want: 'sign in', so_that: 'access the app', acceptance_criteria: ['email+password', 'forgot password'], points: 3, priority: 'medium' }
+    ];
+  } else {
+    const model = pickModel({ strictSchema: enforceSchema });
+    stories = await runJson<any[]>({ model, prompt, schema });
+  }
 
   // Deduplicate by (ingestId, title)
   const titles = stories.map((s) => String(s.title || '').trim()).filter(Boolean);

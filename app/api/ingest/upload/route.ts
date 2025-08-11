@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
   // Upload raw file to storage (best-effort; ignore errors in demo)
   await uploadToSupabase(user.id, file, filename);
   const raw_text = await parseToText(file, mimeType);
+  const meta: Record<string, any> = {};
+  if (!raw_text) meta.parse_error = true;
 
   const { data, error } = await supabase
     .from('ingests')
@@ -34,6 +36,7 @@ export async function POST(req: NextRequest) {
       filename,
       mime_type: mimeType,
       raw_text,
+      meta,
       created_by: user.id
     })
     .select('id')

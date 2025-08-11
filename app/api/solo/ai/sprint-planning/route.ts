@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { runJson } from '@/lib/ai/run';
+import { hasAI } from '@/lib/env';
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -29,10 +30,12 @@ export async function POST(req: NextRequest) {
   const prompt = `Given these backlog items (with points): ${selected.join(', ')}. Provide JSON with keys: suggested_order (array of story IDs in recommended order) and risks (array of strings).`;
   const schema = { name: 'planning', schema: { type: 'object', required: ['suggested_order', 'risks'], properties: { suggested_order: { type: 'array', items: { type: 'string' } }, risks: { type: 'array', items: { type: 'string' } } } } };
   let ai = { suggested_order: selected, risks: [] as string[] };
-  try {
-    ai = await runJson<typeof ai>({ prompt, schema });
-  } catch {
-    // ignore
+  if (hasAI()) {
+    try {
+      ai = await runJson<typeof ai>({ prompt, schema });
+    } catch {
+      // ignore
+    }
   }
 
   return NextResponse.json({ selected_story_ids: selected, total_points: total, suggested_order: ai.suggested_order, risks: ai.risks, velocity_estimate: velocity });

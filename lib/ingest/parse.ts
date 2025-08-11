@@ -9,7 +9,29 @@ export async function parseToText(file: File | Blob, mimeType?: string): Promise
     if (type.includes('text') || type.includes('markdown') || type.includes('csv') || type.includes('json')) {
       return new TextDecoder().decode(arrayBuffer);
     }
-    // Unsupported office/audio in this minimal implementation
+    // Try lightweight PDF extraction if possible
+    if (type.includes('pdf')) {
+      try {
+        const { default: pdfParse } = await import('pdf-parse').catch(() => ({ default: null as any }));
+        if (pdfParse) {
+          const res = await pdfParse(Buffer.from(arrayBuffer));
+          if (res?.text) return res.text;
+        }
+      } catch {}
+      return '';
+    }
+    // Try lightweight DOCX extraction if possible
+    if (type.includes('word') || type.includes('officedocument.wordprocessingml.document') || type.endsWith('docx')) {
+      try {
+        const { default: mammoth } = await import('mammoth').catch(() => ({ default: null as any }));
+        if (mammoth && typeof mammoth.extractRawText === 'function') {
+          const res = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) });
+          if (res?.value) return res.value;
+        }
+      } catch {}
+      return '';
+    }
+    // Unsupported formats: return empty string to avoid throwing
     return '';
   } catch (err) {
     // eslint-disable-next-line no-console

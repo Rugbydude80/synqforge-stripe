@@ -48,6 +48,10 @@ async function requestAblyToken({
 
 export async function POST(req: NextRequest) {
   try {
+    // If Ably is not configured, return 204 to indicate presence is disabled
+    if (!process.env.ABLY_API_KEY) {
+      return NextResponse.json({}, { status: 204 });
+    }
     const supabase = createClient();
     const {
       data: { user },

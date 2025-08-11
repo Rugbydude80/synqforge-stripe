@@ -30,9 +30,9 @@ export default async function RootLayout({ children }: PropsWithChildren) {
           className="min-h-[calc(100dvh-4rem)] md:min-h[calc(100dvh-5rem)]"
         >
           {isDemoMode() && (
-            <div className="bg-amber-50 text-amber-900 border border-amber-200 py-2">
-              <div className="max-w-6xl mx-auto px-6 text-sm text-center">
-                Demo mode — connect Supabase to persist your data.
+            <div className="bg-amber-50 text-amber-900 border-b border-amber-200 py-2">
+              <div className="max-w-6xl mx-auto px-6 text-sm text-center" role="status" aria-live="polite">
+                Demo Mode: data is ephemeral; connect Supabase to persist.
               </div>
             </div>
           )}

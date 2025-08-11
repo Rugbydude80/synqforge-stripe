@@ -15,6 +15,10 @@ export async function getAblyRealtime(clientId: string) {
         // Avoid instantiating Ably on the server
         return null;
       }
+      // Graceful opt-out when no Ably API key present
+      if (!process.env.ABLY_API_KEY) {
+        return null;
+      }
       const Ably = await import('ably');
       const client = new Ably.Realtime({
         clientId,

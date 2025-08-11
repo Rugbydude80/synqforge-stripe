@@ -429,6 +429,7 @@ export type Database = {
           due_date: string | null
           epic_id: string | null
           id: string
+          ingest_id: string | null
           points: number
           project_id: string | null
           sprint_id: string | null
@@ -445,6 +446,7 @@ export type Database = {
           due_date?: string | null
           epic_id?: string | null
           id?: string
+          ingest_id?: string | null
           points?: number
           project_id?: string | null
           sprint_id?: string | null
@@ -461,6 +463,7 @@ export type Database = {
           due_date?: string | null
           epic_id?: string | null
           id?: string
+          ingest_id?: string | null
           points?: number
           project_id?: string | null
           sprint_id?: string | null
@@ -474,6 +477,13 @@ export type Database = {
             columns: ["epic_id"]
             isOneToOne: false
             referencedRelation: "epics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stories_ingest_id_fkey"
+            columns: ["ingest_id"]
+            isOneToOne: false
+            referencedRelation: "ingests"
             referencedColumns: ["id"]
           },
           {

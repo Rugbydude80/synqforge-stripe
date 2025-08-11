@@ -64,10 +64,10 @@ export default function IngestPage() {
         <div className="md:col-span-2 text-sm">
           <div className="mb-1">Upload file</div>
           <div className="flex gap-2">
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input type="file" accept=".txt,.md,.csv,.json,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv,application/json" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             <button className="bg-blue-600 hover:bg-blue-500 text-white rounded px-3" onClick={onUpload}>Upload</button>
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Supported: pdf, txt, md, csv, json</div>
+          <div className="text-xs text-zinc-500 mt-1">Supported: pdf, docx, txt, md, csv, json</div>
         </div>
       </div>
 

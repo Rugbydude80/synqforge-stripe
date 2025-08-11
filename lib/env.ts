@@ -67,6 +67,11 @@ export function hasAIKeys(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
 
+// Backwards-compatible alias expected by some callers/spec
+export function hasAI(): boolean {
+  return hasAIKeys();
+}
+
 /**
  * Billing feature flag helper.
  * When DISABLE_BILLING === 'true', billing is OFF.

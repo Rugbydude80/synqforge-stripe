@@ -23,6 +23,7 @@ const relevantEvents = new Set([
 
 export async function POST(req: Request) {
   if (!isBillingEnabled()) return new Response(null, { status: 204 });
+  // Lazy import Stripe and our config only when billing is enabled
   const { default: Stripe } = await import('stripe');
   const { getServerStripe } = await import('@/utils/stripe/config');
   const stripe = getServerStripe();
