@@ -34,6 +34,15 @@ interface Props {
 type BillingInterval = 'lifetime' | 'year' | 'month';
 
 export default function Pricing({ user, products, subscription }: Props) {
+  // Hooks must be called unconditionally at the top level
+  const router = useRouter();
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('month');
+  const [priceIdLoading, setPriceIdLoading] = useState<string>();
+  const currentPath = usePathname();
+  const intervals = Array.from(
+    new Set(products.flatMap((product) => product?.prices?.map((price) => price?.interval)))
+  );
+
   if (!billingOn) {
     return (
       <section className="bg-black">
@@ -45,18 +54,6 @@ export default function Pricing({ user, products, subscription }: Props) {
       </section>
     );
   }
-  const intervals = Array.from(
-    new Set(
-      products.flatMap((product) =>
-        product?.prices?.map((price) => price?.interval)
-      )
-    )
-  );
-  const router = useRouter();
-  const [billingInterval, setBillingInterval] =
-    useState<BillingInterval>('month');
-  const [priceIdLoading, setPriceIdLoading] = useState<string>();
-  const currentPath = usePathname();
 
   const handleStripeCheckout = async (price: Price) => {
     setPriceIdLoading(price.id);

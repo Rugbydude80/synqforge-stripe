@@ -17,7 +17,9 @@ interface NavlinksProps {
 }
 
 export default function Navlinks({ user }: NavlinksProps) {
-  const router = getRedirectMethod() === 'client' ? useRouter() : null;
+  const router = useRouter();
+  const pathname = usePathname();
+  const shouldUseClientRedirect = getRedirectMethod() === 'client';
   const supabase = createSupabaseBrowserClient();
   const [unread, setUnread] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -45,7 +47,7 @@ export default function Navlinks({ user }: NavlinksProps) {
       };
     }
     return () => { active = false; };
-  }, [user]);
+  }, [user, supabase]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -117,8 +119,8 @@ export default function Navlinks({ user }: NavlinksProps) {
       </div>
       <div className="flex justify-end space-x-8">
         {user ? (
-          <form onSubmit={(e) => handleRequest(e, SignOut, router)}>
-            <input type="hidden" name="pathName" value={usePathname()} />
+          <form onSubmit={(e) => handleRequest(e, SignOut, shouldUseClientRedirect ? router : null)}>
+            <input type="hidden" name="pathName" value={pathname || ''} />
             <button type="submit" className={s.link}>
               Sign out
             </button>

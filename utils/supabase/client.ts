@@ -67,7 +67,7 @@ function createDemoClient() {
 // (organisations, projects, stories, etc.), so we import from
 // '@/types/extended-db' instead.  If you regenerate types via Supabase
 // CLI in the future, you can point back to types_db.ts.
-import type { Database } from '@/types/extended-db';
+// (duplicate removed)
 
 // Define a function to create a Supabase client for client-side operations
 export const createClient = () => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import test from 'node:test';
-import { selectStoriesByPriorityAndDueDate } from './selectStories.ts';
+import { selectStoriesByPriorityAndDueDate } from './selectStories';
 
 test('selectStories respects capacity with 10% overfill', () => {
   const stories = [

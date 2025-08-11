@@ -78,7 +78,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   const refreshStories = useCallback(async () => {
     setLoading(true);
     let query = supabase.from('stories').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
-    if (statusFilter) query = query.eq('status', statusFilter);
+    if (statusFilter) query = query.eq('status', statusFilter as 'backlog' | 'in_progress' | 'review' | 'done');
     if (assigneeFilter) query = query.eq('assigned_to', assigneeFilter);
     if (sprintFilter) query = query.eq('sprint_id', sprintFilter);
     if (dueStart) query = query.gte('due_date', dueStart);

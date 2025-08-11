@@ -12,7 +12,8 @@ export async function parseToText(file: File | Blob, mimeType?: string): Promise
     // Try lightweight PDF extraction if possible
     if (type.includes('pdf')) {
       try {
-        const { default: pdfParse } = await import('pdf-parse').catch(() => ({ default: null as any }));
+        // Optional dependency; if not installed, skip gracefully
+        const { default: pdfParse } = ({} as any);
         if (pdfParse) {
           const res = await pdfParse(Buffer.from(arrayBuffer));
           if (res?.text) return res.text;
@@ -23,7 +24,8 @@ export async function parseToText(file: File | Blob, mimeType?: string): Promise
     // Try lightweight DOCX extraction if possible
     if (type.includes('word') || type.includes('officedocument.wordprocessingml.document') || type.endsWith('docx')) {
       try {
-        const { default: mammoth } = await import('mammoth').catch(() => ({ default: null as any }));
+        // Optional dependency; if not installed, skip gracefully
+        const { default: mammoth } = ({} as any);
         if (mammoth && typeof mammoth.extractRawText === 'function') {
           const res = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) });
           if (res?.value) return res.value;

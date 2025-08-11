@@ -44,8 +44,10 @@ const upsertPriceRecord = async (
     id: price.id,
     product_id: typeof price.product === 'string' ? price.product : '',
     active: price.active,
-    currency: price.currency,
-    type: price.type,
+    currency: price.currency ?? null,
+    description: price.nickname ?? null,
+    metadata: (price as any).metadata ?? {},
+    type: price.type ?? null,
     unit_amount: price.unit_amount ?? null,
     interval: price.recurring?.interval ?? null,
     interval_count: price.recurring?.interval_count ?? null,
@@ -104,7 +106,7 @@ const upsertCustomerToSupabase = async (uuid: string, customerId: string) => {
 };
 
 const createCustomerInStripe = async (uuid: string, email: string) => {
-  const customerData = { metadata: { supabaseUUID: uuid }, email: email };
+  const customerData = { metadata: { supabaseUUID: uuid }, email: email } as Stripe.CustomerCreateParams;
   const { getServerStripe } = await import('@/utils/stripe/config');
   const stripe = getServerStripe();
   const newCustomer = await stripe.customers.create(customerData);
@@ -206,7 +208,7 @@ const copyBillingDetailsToCustomer = async (
   {
     const { getServerStripe } = await import('@/utils/stripe/config');
     const stripe = getServerStripe();
-    await stripe.customers.update(customer, { name, phone, address });
+    await stripe.customers.update(customer, { name: name || undefined, phone: phone || undefined, address: address || undefined });
   }
   const { error: updateError } = await supabaseAdmin
     .from('users')

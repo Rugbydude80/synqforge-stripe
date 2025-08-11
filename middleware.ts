@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
-    "connect-src 'self' https://api.openrouter.ai https://api.openai.com https://*.supabase.co https://*.ably.io https://*.upstash.io",
+    "connect-src 'self' https://openrouter.ai https://api.openai.com https://*.supabase.co https://*.ably.io https://*.upstash.io",
     "font-src 'self' data:",
     "frame-ancestors 'none'"
   ].join('; ');
