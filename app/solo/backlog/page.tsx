@@ -1,4 +1,5 @@
 'use client';
+import { Suspense } from 'react';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -17,7 +18,7 @@ type Story = {
 
 const statusOptions = ['backlog', 'in_progress', 'review', 'done'] as const;
 
-export default function SoloBacklogPage() {
+function SoloBacklogInner() {
   const supabase = createSupabaseBrowserClient();
   const search = useSearchParams();
   const router = useRouter();
@@ -106,6 +107,14 @@ export default function SoloBacklogPage() {
         ))}
       </ul>
     </div>
+  );
+}
+
+export default function SoloBacklogPage() {
+  return (
+    <Suspense>
+      <SoloBacklogInner />
+    </Suspense>
   );
 }
 

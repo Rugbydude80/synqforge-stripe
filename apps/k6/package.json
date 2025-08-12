@@ -1,0 +1,9 @@
+{
+  "name": "k6",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "run": "echo 'Run with: k6 run apps/k6/claim.js'"
+  }
+}
+

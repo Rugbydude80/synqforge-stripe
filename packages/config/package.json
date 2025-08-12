@@ -1,0 +1,12 @@
+{
+  "name": "@rota/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.cjs",
+    "./prettier": "./prettier.json",
+    "./tsconfig": "./tsconfig.json"
+  }
+}
+

@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContractType {
+  irregular
+  part_year
+  fixed
+  full_time
+}
+
+enum ShiftStatus {
+  draft
+  published
+  filled
+  cancelled
+}
+
+enum ShiftSource {
+  rota
+  sickness
+  swap
+}
+
+enum OfferStatus {
+  sent
+  accepted
+  expired
+  closed
+}
+
+model Site {
+  id   String @id @default(cuid())
+  name String
+
+  staff  Staff[]
+  shifts Shift[]
+  tipPots TipPot[]
+  policies Policy[]
+  ruleSets RuleSet[]
+}
+
+model Staff {
+  id              String        @id @default(cuid())
+  siteId          String
+  site            Site          @relation(fields: [siteId], references: [id])
+  fullName        String
+  ageYears        Int
+  contractType    ContractType
+  skills          String[]
+  hourlyRate      Decimal       @db.Numeric(10,2)
+  troncEligible   Boolean       @default(false)
+  whatsappOptIn   Boolean       @default(false)
+  pushToken       String?
+  createdAt       DateTime      @default(now())
+
+  shifts          Shift[]       @relation("AssignedStaff")
+  offers          Offer[]       @relation("OfferRecipient")
+  tipAllocations  TipAllocation[]
+  holidayLedgers  HolidayLedger[]
+}
+
+model Shift {
+  id               String       @id @default(cuid())
+  siteId           String
+  site             Site         @relation(fields: [siteId], references: [id])
+  role             String
+  startsAt         DateTime
+  endsAt           DateTime
+  status           ShiftStatus  @default(draft)
+  source           ShiftSource  @default(rota)
+  assignedStaffId  String?
+  assignedStaff    Staff?       @relation("AssignedStaff", fields: [assignedStaffId], references: [id])
+  createdAt        DateTime     @default(now())
+
+  offers           Offer[]
+
+  @@index([siteId, startsAt, endsAt])
+}
+
+model Offer {
+  id           String       @id @default(cuid())
+  shiftId      String
+  shift        Shift        @relation(fields: [shiftId], references: [id])
+  recipientId  String
+  recipient    Staff        @relation("OfferRecipient", fields: [recipientId], references: [id])
+  sentAt       DateTime
+  acceptedAt   DateTime?
+  status       OfferStatus  @default(sent)
+
+  @@index([shiftId, status])
+}
+
+model TipPot {
+  id            String   @id @default(cuid())
+  siteId        String
+  site          Site     @relation(fields: [siteId], references: [id])
+  day           DateTime
+  serviceCharge Decimal  @db.Numeric(10,2)
+  cashTips      Decimal  @db.Numeric(10,2)
+
+  allocations   TipAllocation[]
+}
+
+model TipAllocation {
+  id         String   @id @default(cuid())
+  potId      String
+  pot        TipPot   @relation(fields: [potId], references: [id])
+  staffId    String
+  staff      Staff    @relation(fields: [staffId], references: [id])
+  amount     Decimal  @db.Numeric(10,2)
+  rationale  String
+  createdAt  DateTime @default(now())
+}
+
+model HolidayLedger {
+  id             String   @id @default(cuid())
+  staffId        String
+  staff          Staff    @relation(fields: [staffId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  accrualPercent Decimal  @default(12.07) @db.Numeric(5,2)
+  rolledUp       Boolean
+  accruedHours   Decimal  @db.Numeric(10,2)
+  rolledUpPay    Decimal  @db.Numeric(10,2)
+  snapshot       Json
+}
+
+model AuditEvent {
+  id         BigInt   @id @default(autoincrement())
+  occurredAt DateTime @default(now())
+  actorType  String
+  actorId    String?
+  eventType  String
+  entity     String
+  entityId   String
+  details    Json
+  signature  Bytes?
+
+  @@index([entity, entityId])
+}
+
+model Policy {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+  type        String
+  version     Int
+  documentUrl String
+  params      Json
+  publishedAt DateTime
+}
+
+model RuleSet {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+  version     Int
+  rules       Json
+  publishedAt DateTime
+}
+

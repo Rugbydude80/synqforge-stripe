@@ -1,3 +1,28 @@
+# Compliance-First Rota (UK)
+
+Monorepo with Next.js web, NestJS API, Inngest workers. Uses Postgres, Redis, Supabase Auth (JWKS), Ably, Twilio.
+
+## Setup
+
+- Install pnpm
+- Copy `.env.example` to `.env`
+- Run Docker services: `docker compose -f infra/docker-compose.yml up -d`
+- Install deps: `pnpm install`
+- DB: `pnpm db:push` then `pnpm db:seed`
+- Dev: `pnpm dev`
+
+## Apps
+
+- API: `http://localhost:4000/docs`
+- Web: `http://localhost:3000`
+
+## Smoke test
+
+1. Create site, staff, shift (seed provides defaults)
+2. POST `/shifts/:id/offers/batch` size=10
+3. POST `/offers/:id/accept` concurrently — first wins
+
+Default login: use Supabase magic link to your email in dev.
 # Next.js Subscription Payments Starter
 
 
