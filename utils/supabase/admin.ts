@@ -208,7 +208,17 @@ const copyBillingDetailsToCustomer = async (
   {
     const { getServerStripe } = await import('@/utils/stripe/config');
     const stripe = getServerStripe();
-    await stripe.customers.update(customer, { name: name || undefined, phone: phone || undefined, address: address || undefined });
+    const addr = address
+      ? {
+          city: address.city ?? undefined,
+          country: address.country ?? undefined,
+          line1: address.line1 ?? undefined,
+          line2: address.line2 ?? undefined,
+          postal_code: address.postal_code ?? undefined,
+          state: address.state ?? undefined
+        }
+      : undefined;
+    await stripe.customers.update(customer, { name: name || undefined, phone: phone || undefined, address: addr });
   }
   const { error: updateError } = await supabaseAdmin
     .from('users')
